@@ -133,10 +133,10 @@ const soloDuty = computed(() => {
   border-bottom: none;
 }
 
-/* 天与天之间的分隔略深于行分隔，让「哪天是哪天」一目了然 */
+/* 天与天之间的分隔：明显深于行分隔，让「哪天是哪天」一目了然 */
 .dcell.day-sep,
 .solo.day-sep {
-  border-left: 1px solid var(--el-border-color-light);
+  border-left: 1px solid var(--el-border-color-dark);
 }
 
 .dcell.is-conflict,

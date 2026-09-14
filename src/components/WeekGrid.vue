@@ -135,7 +135,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 }
 
 .day-head.day-sep {
-  border-left: 1px solid var(--el-border-color-light);
+  border-left: 1px solid var(--el-border-color-dark);
 }
 
 .dname {
@@ -156,6 +156,6 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   font-size: 11px;
   color: var(--el-text-color-secondary);
   line-height: 1.3;
-  border-right: 1px solid var(--el-border-color-light);
+  border-right: 1px solid var(--el-border-color-dark);
 }
 </style>
