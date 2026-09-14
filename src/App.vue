@@ -45,15 +45,14 @@ onBeforeUnmount(() => {
   <el-container direction="vertical">
     <header class="app-header">
       <div class="brand">SchedMate</div>
-      <TopBar />
+      <TopBar v-if="timetable.hasAnyData" />
     </header>
-    <el-main class="app-main">
-      <div v-if="!timetable.hasAnyData" class="empty-drop">
-        <div class="empty-title">把课表 xlsx 拖进来</div>
-        <div class="empty-sub">一份文件一个人 · 文件名用中文名会直接作为人名 · 可以一次拖多份</div>
-      </div>
-      <WeekView v-else />
+    <el-main v-if="timetable.hasAnyData" class="app-main">
+      <WeekView />
     </el-main>
+    <div v-else class="empty-stage">
+      <div class="empty-title">把课表 xlsx 拖进来</div>
+    </div>
 
     <div v-show="overlayVisible" class="drop-overlay">
       <div class="drop-frame">
@@ -87,25 +86,20 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.empty-drop {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 96px 24px;
+/* 空态：占满整个窗口的拖入提示 */
+.empty-stage {
+  height: calc(100vh - 52px - 16px);
+  margin: 8px;
   border: 2px dashed var(--el-border-color-lighter);
   border-radius: 16px;
   background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .empty-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--el-text-color-regular);
-}
-
-.empty-sub {
-  font-size: 13px;
+  font-size: 18px;
   color: var(--el-text-color-secondary);
 }
 
