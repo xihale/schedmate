@@ -8,7 +8,6 @@ const KEY = 'schedmate:v1:config'
 interface ConfigState {
   persons: Person[]
   semesterStart: string // 第1周周一，ISO 日期
-  colorOverrides: Record<string, string> // 课程名 -> 颜色
   brushPersonId: PersonId | null // 拖刷人选，null = 关
   ui: {
     tab: 'week' | 'overview'
@@ -26,8 +25,7 @@ export const useConfigStore = defineStore('config', () => {
         { id: 'A', name: '同学A', color: '#4C84F0' },
         { id: 'B', name: '同学B', color: '#41A86E' },
       ],
-      semesterStart: '2026-09-14',
-      colorOverrides: {},
+      semesterStart: '2026-08-31',
       brushPersonId: null,
       ui: { tab: 'week', week: 1, highlightDay: null, showA: true, showB: true },
     }),

@@ -43,13 +43,18 @@ function cellFill(dutyTotal: number): string {
             v-for="d in row.days"
             :key="d.day"
             class="ocell"
+            :class="{ 'edge-r': d.day === 7, 'edge-b': row.week === 20 }"
             :style="{ background: cellFill(d.dutyTotal) }"
             title="点击下钻到该周该天"
             @click="drill(d.week, d.day)"
           >
             <template v-if="d.dutyTotal > 0">
-              <span v-if="d.aCount > 0" class="badge a">{{ d.aCount }}</span>
-              <span v-if="d.bCount > 0" class="badge b">{{ d.bCount }}</span>
+              <span v-if="d.aCount > 0" class="badge" :style="{ background: config.personById.A.color }">
+                {{ d.aCount }}
+              </span>
+              <span v-if="d.bCount > 0" class="badge" :style="{ background: config.personById.B.color }">
+                {{ d.bCount }}
+              </span>
             </template>
             <span class="free" :class="{ dim: d.free === 0 }">{{ d.free > 0 ? `可排${d.free}` : '满' }}</span>
           </div>
@@ -59,46 +64,49 @@ function cellFill(dutyTotal: number): string {
 
     <div class="stats">
       <div class="stat">
-        <span class="dot a" />
+        <span class="dot" :style="{ background: config.personById.A.color }" />
         {{ config.personName('A') }} 已排 <b>{{ schedule.totals.value.a }}</b> 节
       </div>
       <div class="stat">
-        <span class="dot b" />
+        <span class="dot" :style="{ background: config.personById.B.color }" />
         {{ config.personName('B') }} 已排 <b>{{ schedule.totals.value.b }}</b> 节
       </div>
       <div class="stat">合计已排 <b>{{ schedule.totals.value.dutyTotal }}</b> 节</div>
       <div class="stat">剩余可排 <b>{{ schedule.totals.value.free }}</b> 节</div>
-      <span class="hint">格子内：色块数字 = 已排节数（A 蓝 / B 绿），“可排N” = 双方空闲且未排的节数</span>
+      <span class="hint">格子内：色块数字 = 已排节数（颜色对应人员），“可排N” = 双方空闲且未排的节数</span>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* 连续矩阵：外层面板，内部发丝线，与周视图同一套扁平语言 */
 .matrix {
   display: grid;
   grid-template-columns: 110px repeat(7, 1fr);
-  gap: 3px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .head {
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  background: #fafbfc;
   text-align: center;
-  padding: 6px 0;
+  padding: 8px 0;
   font-weight: 600;
   font-size: 13px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .row-label {
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  background: #fafbfc;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 2px 10px;
   font-size: 12px;
+  border-right: 1px solid var(--el-border-color-extra-light);
+  border-bottom: 1px solid var(--el-border-color-extra-light);
 }
 
 .wname {
@@ -112,18 +120,26 @@ function cellFill(dutyTotal: number): string {
 
 .ocell {
   min-height: 34px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border-right: 1px solid var(--el-border-color-extra-light);
+  border-bottom: 1px solid var(--el-border-color-extra-light);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   cursor: pointer;
-  transition: border-color 0.12s;
+  transition: background-color 0.12s;
 }
 
 .ocell:hover {
-  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9) !important;
+}
+
+.ocell.edge-r {
+  border-right: none;
+}
+
+.ocell.edge-b {
+  border-bottom: none;
 }
 
 .badge {
@@ -132,14 +148,6 @@ function cellFill(dutyTotal: number): string {
   line-height: 1;
   padding: 3px 5px;
   border-radius: 4px;
-}
-
-.badge.a {
-  background: var(--el-color-primary);
-}
-
-.badge.b {
-  background: var(--el-color-success);
 }
 
 .free {
@@ -156,11 +164,7 @@ function cellFill(dutyTotal: number): string {
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-top: 12px;
+  padding: 10px 4px;
   font-size: 13px;
 }
 
@@ -174,14 +178,6 @@ function cellFill(dutyTotal: number): string {
   height: 10px;
   border-radius: 50%;
   margin-right: 4px;
-}
-
-.dot.a {
-  background: var(--el-color-primary);
-}
-
-.dot.b {
-  background: var(--el-color-success);
 }
 
 .hint {

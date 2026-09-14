@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
-import { courseBase, rgba } from '../lib/palette'
+import { darken, rgba } from '../lib/palette'
 
 const props = defineProps<{
   week: number
@@ -26,13 +26,14 @@ const sides = computed(() => [
 ])
 
 function halfStyle(side: (typeof sides.value)[number]): Record<string, string> {
+  const personColor = config.personById[side.pid].color
   const style: Record<string, string> = {}
   if (side.half.status === 'course') {
-    const base = courseBase(side.half.course.name, config.state.colorOverrides)
-    style.background = rgba(base, side.half.course.start === props.period ? 0.28 : 0.14)
+    style.background = rgba(personColor, side.half.course.start === props.period ? 0.3 : 0.15)
+    style.color = `#${darken(personColor, 0.82)}`
   }
   if (info.value.duty?.personId === side.pid) {
-    style.background = rgba(config.personById[side.pid].color, side.half.status === 'course' ? 0.35 : 0.2)
+    style.background = rgba(personColor, side.half.status === 'course' ? 0.32 : 0.18)
   }
   return style
 }
@@ -49,7 +50,6 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
       'is-preview': preview,
       'is-conflict': info.conflict,
       'is-highlight': highlight,
-      'has-duty': !!info.duty,
     }"
     :style="{ '--halves': halfCount }"
     @pointerdown="$emit('press', $event)"
@@ -91,35 +91,35 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
   grid-template-rows: repeat(var(--halves, 2), 1fr);
   min-height: 68px;
   background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  overflow: hidden;
+  border-right: 1px solid var(--el-border-color-extra-light);
+  border-bottom: 1px solid var(--el-border-color-extra-light);
   cursor: pointer;
-  transition:
-    box-shadow 0.12s,
-    border-color 0.12s;
+  transition: background-color 0.12s;
 }
 
 .dcell:hover {
-  border-color: var(--el-color-primary-light-5);
+  background: #fafbfc;
+}
+
+.dcell.edge-r {
+  border-right: none;
+}
+
+.dcell.edge-b {
+  border-bottom: none;
 }
 
 .dcell.is-highlight {
-  box-shadow: 0 0 0 1.5px var(--el-color-primary-light-7);
+  background: var(--el-color-primary-light-9);
 }
 
 .dcell.is-preview {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
-}
-
-.dcell.has-duty {
-  border-color: var(--el-color-primary-light-5);
+  background: var(--el-color-primary-light-8);
+  box-shadow: inset 0 0 0 2px var(--el-color-primary);
 }
 
 .dcell.is-conflict {
-  border-color: var(--el-color-danger);
-  box-shadow: 0 0 0 1px var(--el-color-danger) inset;
+  box-shadow: inset 0 0 0 2px var(--el-color-danger);
 }
 
 .half {
@@ -128,13 +128,13 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2px 4px;
+  padding: 2px 6px;
   min-width: 0;
   overflow: hidden;
 }
 
 .half + .half {
-  border-top: 1px dashed var(--el-border-color-lighter);
+  border-top: 1px solid var(--el-border-color-extra-light);
 }
 
 .cname {

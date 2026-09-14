@@ -96,7 +96,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 
 <template>
   <div class="week-grid" :class="{ dragging: !!drag }">
-    <div class="corner cell-base" />
+    <div class="corner" />
     <div
       v-for="(dname, i) in DAY_NAMES"
       :key="dname"
@@ -123,6 +123,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
         :preview="isPreview(d, p)"
         :highlight="highlightDay === d"
         :half-count="visibleHalfCount"
+        :class="{ 'edge-r': d === 7, 'edge-b': p === PERIOD_COUNT }"
         @press="(e: MouseEvent) => onCellPress(d, p, e)"
         @enter="onCellEnter(d, p)"
       />
@@ -140,10 +141,14 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 </template>
 
 <style scoped>
+/* 连续无框课表：外层一个圆角面板，内部仅发丝线分隔，不断开 */
 .week-grid {
   display: grid;
   grid-template-columns: 52px repeat(7, minmax(104px, 1fr));
-  gap: 3px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 12px;
+  overflow: hidden;
   user-select: none;
 }
 
@@ -151,10 +156,10 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   cursor: crosshair;
 }
 
-.cell-base {
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+.corner,
+.day-head,
+.period-label {
+  background: #fafbfc;
 }
 
 .day-head {
@@ -162,14 +167,18 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   align-items: baseline;
   justify-content: center;
   gap: 6px;
-  padding: 6px 4px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: background-color 0.15s;
 }
 
 .day-head.is-highlight {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
+  background: var(--el-color-primary-light-9);
+}
+
+.day-head.is-highlight .dname {
+  color: var(--el-color-primary);
 }
 
 .dname {
@@ -190,5 +199,6 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   font-size: 11px;
   color: var(--el-text-color-secondary);
   line-height: 1.3;
+  border-right: 1px solid var(--el-border-color-extra-light);
 }
 </style>

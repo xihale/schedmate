@@ -17,9 +17,6 @@ export const useTimetableStore = defineStore('timetable', () => {
 
   const hasAnyData = computed(() => state.value.courses.length > 0)
 
-  /** 全部去重课程名（用于调色板/图例/设置） */
-  const courseNames = computed(() => Array.from(new Set(state.value.courses.map((c) => c.name))).sort((a, b) => a.localeCompare(b, 'zh')))
-
   async function importFor(personId: PersonId, file: File): Promise<ImportReport> {
     const buf = await file.arrayBuffer()
     const { courses, report } = parseTimetable(personId, buf, file.name)
@@ -44,5 +41,5 @@ export const useTimetableStore = defineStore('timetable', () => {
     state.value.meta = {}
   }
 
-  return { state, hasAnyData, courseNames, importFor, clearPerson, clearAll }
+  return { state, hasAnyData, importFor, clearPerson, clearAll }
 })

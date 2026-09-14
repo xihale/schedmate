@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx-js-style'
 import { DAY_NAMES, PERIOD_COUNT, WEEK_COUNT, parseDutyKey } from '../types'
 import type { Course } from '../types'
 import { useSchedule } from '../composables/useSchedule'
-import { courseBase, darken, mixWithWhite } from './palette'
+import { darken, mixWithWhite } from './palette'
 import { courseDate, fmtISO } from './dates'
 
 const thin = { style: 'thin', color: { rgb: 'D0D7DE' } }
@@ -106,7 +106,7 @@ export function exportRendered(): void {
           const c = anchor
           lines.push(c.name)
           if (c.location) lines.push(c.location)
-          const base = courseBase(c.name, config.state.colorOverrides)
+          const base = config.personById[c.personId].color
           fill = mixWithWhite(base, 0.32)
           fontColor = darken(base, 0.75)
         }

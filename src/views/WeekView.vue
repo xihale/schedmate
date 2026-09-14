@@ -3,15 +3,13 @@ import { computed } from 'vue'
 import { ArrowLeft, ArrowRight, RefreshLeft, RefreshRight } from '@element-plus/icons-vue'
 import { useConfigStore } from '../stores/config'
 import { useDutyStore } from '../stores/duty'
-import { useSchedule } from '../composables/useSchedule'
 import { WEEK_COUNT } from '../types'
+import type { PersonId } from '../types'
 import { weekRangeLabel } from '../lib/dates'
-import { courseBase, rgba } from '../lib/palette'
 import WeekGrid from '../components/WeekGrid.vue'
 
 const config = useConfigStore()
 const duty = useDutyStore()
-const { timetable } = useSchedule()
 
 const week = computed({
   get: () => config.state.ui.week,
@@ -35,12 +33,23 @@ function stepWeek(delta: number): void {
   week.value = next
 }
 
-const legend = computed(() =>
-  timetable.courseNames.map((name) => ({
-    name,
-    color: courseBase(name, config.state.colorOverrides),
-  })),
-)
+/** 本周每人已排节数 */
+const weeklyCounts = computed(() => {
+  const c: Record<PersonId, number> = { A: 0, B: 0 }
+  for (const [key, entry] of Object.entries(duty.state.map)) {
+    if (Number(key.split('|')[0]) === config.state.ui.week) c[entry.personId]++
+  }
+  return c
+})
+
+function isVisible(pid: PersonId): boolean {
+  return pid === 'A' ? config.state.ui.showA : config.state.ui.showB
+}
+
+function toggleVisible(pid: PersonId): void {
+  if (pid === 'A') config.state.ui.showA = !config.state.ui.showA
+  else config.state.ui.showB = !config.state.ui.showB
+}
 </script>
 
 <template>
@@ -63,33 +72,33 @@ const legend = computed(() =>
           {{ p.name }}
         </el-radio-button>
       </el-radio-group>
-      <span class="hint">选中人名后，在格子间拖动可连排</span>
 
       <el-divider direction="vertical" />
 
-      <el-checkbox v-model="config.state.ui.showA">显示 {{ config.personName('A') }}</el-checkbox>
-      <el-checkbox v-model="config.state.ui.showB">显示 {{ config.personName('B') }}</el-checkbox>
+      <button
+        v-for="p in config.state.persons"
+        :key="p.id"
+        class="person-toggle"
+        :class="{ off: !isVisible(p.id) }"
+        :title="`点击显示/隐藏 ${p.name} 的课程`"
+        @click="toggleVisible(p.id)"
+      >
+        <span class="dot" :style="{ background: p.color }" />
+        <span class="pname">{{ p.name }}</span>
+        <span class="count">{{ weeklyCounts[p.id] }}</span>
+      </button>
 
       <el-divider direction="vertical" />
 
-      <el-button size="small" :icon="RefreshLeft" :disabled="!duty.canUndo" @click="duty.undo()">撤销</el-button>
-      <el-button size="small" :icon="RefreshRight" :disabled="!duty.canRedo" @click="duty.redo()">重做</el-button>
-      <span class="hint">已排 {{ duty.count }} 节</span>
+      <el-tooltip content="撤销" placement="top">
+        <el-button :icon="RefreshLeft" :disabled="!duty.canUndo" @click="duty.undo()" />
+      </el-tooltip>
+      <el-tooltip content="重做" placement="top">
+        <el-button :icon="RefreshRight" :disabled="!duty.canRedo" @click="duty.redo()" />
+      </el-tooltip>
     </div>
 
     <WeekGrid />
-
-    <div class="legend">
-      <div v-for="item in legend" :key="item.name" class="legend-item">
-        <span class="swatch" :style="{ background: rgba(item.color, 0.25), borderColor: item.color }" />
-        <span class="lname">{{ item.name }}</span>
-        <el-color-picker
-          size="small"
-          :model-value="config.state.colorOverrides[item.name] || item.color"
-          @update:model-value="(v: string | null) => v && (config.state.colorOverrides[item.name] = v)"
-        />
-      </div>
-    </div>
   </div>
 </template>
 
@@ -105,10 +114,7 @@ const legend = computed(() =>
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 10px 12px;
+  padding: 2px 2px 0;
 }
 
 .lbl {
@@ -116,36 +122,41 @@ const legend = computed(() =>
   color: var(--el-text-color-secondary);
 }
 
-.hint {
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-
-.legend-item {
+.person-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  border: 1px solid;
-}
-
-.lname {
+  border: 1px solid var(--el-border-color-lighter);
+  background: #fff;
+  border-radius: 14px;
+  padding: 4px 10px;
+  cursor: pointer;
   font-size: 12px;
-  color: var(--el-text-color-regular);
+  transition:
+    opacity 0.12s,
+    border-color 0.12s;
+}
+
+.person-toggle:hover {
+  border-color: var(--el-color-primary-light-5);
+}
+
+.person-toggle.off {
+  opacity: 0.4;
+}
+
+.person-toggle.off .pname {
+  text-decoration: line-through;
+}
+
+.person-toggle .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.person-toggle .count {
+  font-weight: 700;
+  color: var(--el-text-color-secondary);
 }
 </style>
