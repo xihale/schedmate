@@ -54,21 +54,20 @@ onBeforeUnmount(() => {
 <template>
   <el-container direction="vertical">
     <header class="app-header">
-      <div class="brand">SchedMate<span class="sub">双人排班</span></div>
+      <div class="brand">SchedMate</div>
       <ImportBar />
     </header>
     <el-main class="app-main">
       <el-tabs v-model="tab">
-        <el-tab-pane label="周视图 · 细排" name="week">
+        <el-tab-pane label="周视图" name="week">
           <div v-if="!timetable.hasAnyData" class="empty-drop">
             <div class="empty-icon">📅</div>
-            <div class="empty-title">把两份课表 xlsx 直接拖进窗口</div>
-            <div class="empty-sub">或点右上角按钮分别导入 · 松开鼠标后可确认文件归谁</div>
+            <div class="empty-title">把两份课表 xlsx 拖进窗口</div>
           </div>
           <WeekView v-else />
         </el-tab-pane>
-        <el-tab-pane label="鸟瞰 · 20 周总览" name="overview">
-          <el-empty v-if="!timetable.hasAnyData" description="先导入 A / B 两份课表 xlsx" />
+        <el-tab-pane label="鸟瞰" name="overview">
+          <el-empty v-if="!timetable.hasAnyData" description="先导入课表" />
           <OverviewView v-else />
         </el-tab-pane>
       </el-tabs>
@@ -77,7 +76,6 @@ onBeforeUnmount(() => {
     <div v-show="overlayVisible" class="drop-overlay">
       <div class="drop-frame">
         <div class="drop-text">松开导入课表 xlsx</div>
-        <div class="drop-sub">拖到某人名字上 = 直接导入给 TA</div>
       </div>
     </div>
 
@@ -100,13 +98,6 @@ onBeforeUnmount(() => {
   font-size: 18px;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.brand .sub {
-  font-size: 12px;
-  font-weight: 400;
-  color: #909399;
-  margin-left: 6px;
 }
 
 .app-main {
@@ -134,11 +125,6 @@ onBeforeUnmount(() => {
 .empty-title {
   font-size: 16px;
   font-weight: 600;
-}
-
-.empty-sub {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
 }
 
 .drop-overlay {
@@ -169,10 +155,5 @@ onBeforeUnmount(() => {
   font-size: 22px;
   font-weight: 700;
   color: var(--el-color-primary);
-}
-
-.drop-sub {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
 }
 </style>

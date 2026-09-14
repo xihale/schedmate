@@ -28,14 +28,22 @@ const sides = computed(() => [
 function halfStyle(side: (typeof sides.value)[number]): Record<string, string> {
   const personColor = config.personById[side.pid].color
   const style: Record<string, string> = {}
+  // 课程 = 人员深色底白字（事实，视觉最重）
   if (side.half.status === 'course') {
-    style.background = rgba(personColor, side.half.course.start === props.period ? 0.3 : 0.15)
-    style.color = `#${darken(personColor, 0.82)}`
+    style.background = personColor
+    style.color = '#fff'
   }
-  if (info.value.duty?.personId === side.pid) {
-    style.background = rgba(personColor, side.half.status === 'course' ? 0.32 : 0.18)
+  // 排班 = 浅色底人员深字（决策，视觉次之）；与课程同格时保持课程深色，靠冲突红环提示
+  if (info.value.duty?.personId === side.pid && side.half.status !== 'course') {
+    style.background = rgba(personColor, 0.16)
+    style.color = `#${darken(personColor, 0.8)}`
   }
   return style
+}
+
+function dutyTagStyle(side: (typeof sides.value)[number]): Record<string, string> {
+  const personColor = config.personById[side.pid].color
+  return { color: side.half.status === 'course' ? '#fff' : `#${darken(personColor, 0.8)}` }
 }
 
 function isAnchor(side: (typeof sides.value)[number]): boolean {
@@ -60,6 +68,7 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
       v-show="side.visible"
       :key="side.pid"
       class="half"
+      :class="{ 'is-nodata': side.half.status === 'nodata' }"
       :style="halfStyle(side)"
     >
       <template v-if="side.half.status === 'course'">
@@ -70,16 +79,14 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
           <div v-if="side.half.course.location" class="cloc">{{ side.half.course.location }}</div>
         </template>
       </template>
-      <span v-else-if="side.half.status === 'nodata'" class="free-tag">未导入</span>
-      <span v-else class="free-tag">空闲</span>
 
       <span
         v-if="info.duty?.personId === side.pid"
-        class="duty-flag"
-        :style="{ background: config.personById[side.pid].color }"
+        class="duty-tag"
+        :style="dutyTagStyle(side)"
         :title="`已排：${config.personName(side.pid)}${info.duty.note ? ' · ' + info.duty.note : ''}`"
       >
-        {{ config.personName(side.pid).slice(0, 2) }}
+        {{ config.personName(side.pid) }}
       </span>
     </div>
   </div>
@@ -128,13 +135,18 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2px 6px;
+  padding: 3px 6px;
   min-width: 0;
   overflow: hidden;
 }
 
 .half + .half {
   border-top: 1px solid var(--el-border-color-extra-light);
+}
+
+/* 未导入（视作可排）：斜纹提示，不用文字 */
+.half.is-nodata {
+  background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(0, 0, 0, 0.035) 6px 8px);
 }
 
 .cname {
@@ -148,28 +160,21 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
 
 .cloc {
   font-size: 10px;
-  color: var(--el-text-color-secondary);
+  color: rgba(255, 255, 255, 0.78);
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.free-tag {
-  font-size: 10px;
-  color: var(--el-text-color-placeholder);
-}
-
-.duty-flag {
+.duty-tag {
   position: absolute;
   top: 2px;
-  right: 2px;
-  color: #fff;
+  right: 3px;
   font-size: 10px;
+  font-weight: 700;
   line-height: 1;
-  padding: 2px 4px;
-  border-radius: 3px;
-  max-width: calc(100% - 4px);
+  max-width: calc(100% - 5px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

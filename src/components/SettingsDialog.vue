@@ -52,7 +52,6 @@ async function clearEverything(): Promise<void> {
         :clearable="false"
         style="width: 160px"
       />
-      <span class="hint">用于周 ↔ 日期换算与导出</span>
     </div>
 
     <h4 class="section-title danger">危险区</h4>

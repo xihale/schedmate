@@ -56,9 +56,9 @@ function saveNote(): void {
 
 function personStatus(pid: 'A' | 'B'): { schedulable: boolean; text: string; kind: 'free' | 'busy' | 'nodata' } {
   const h = schedule.half(pid, props.week, props.day, props.period)
-  if (h.status === 'course') return { schedulable: false, text: `该节有课：${h.course.name}`, kind: 'busy' }
-  if (h.status === 'nodata') return { schedulable: true, text: '该周未导入课表（视作空闲）', kind: 'nodata' }
-  return { schedulable: true, text: '空闲，可安排', kind: 'free' }
+  if (h.status === 'course') return { schedulable: false, text: `有课：${h.course.name}`, kind: 'busy' }
+  if (h.status === 'nodata') return { schedulable: true, text: '未导入，视作空闲', kind: 'nodata' }
+  return { schedulable: true, text: '空闲', kind: 'free' }
 }
 
 const posStyle = computed(() => {
@@ -92,31 +92,29 @@ const posStyle = computed(() => {
         />
 
         <div v-if="info.duty" class="current">
-          <span class="cur-label">当前：</span>
           <el-tag :color="config.personById[info.duty.personId].color" effect="dark" size="small" class="cur-tag">
             {{ config.personName(info.duty.personId) }}
           </el-tag>
-          <el-button link size="small" type="danger" @click="removeDuty">移除排班</el-button>
+          <el-button link size="small" type="danger" @click="removeDuty">移除</el-button>
         </div>
 
         <div class="candidates">
-          <div class="sec-label">{{ info.duty ? '换人' : '谁可以排在这里？' }}</div>
           <div v-for="p in config.state.persons" :key="p.id" class="candidate" :class="{ disabled: !personStatus(p.id).schedulable }">
             <span class="dot" :style="{ background: p.color }" />
             <div class="cinfo">
               <div class="pname">{{ p.name }}</div>
               <div class="pstat">{{ personStatus(p.id).text }}</div>
             </div>
-            <el-button
-              v-if="info.duty?.personId !== p.id"
-              size="small"
-              type="primary"
-              plain
-              :disabled="!personStatus(p.id).schedulable"
-              @click="assign(p.id)"
-            >
-              排{{ p.name }}
-            </el-button>
+          <el-button
+            v-if="info.duty?.personId !== p.id"
+            size="small"
+            type="primary"
+            plain
+            :disabled="!personStatus(p.id).schedulable"
+            @click="assign(p.id)"
+          >
+            排{{ p.name }}
+          </el-button>
           </div>
         </div>
 
@@ -177,12 +175,6 @@ const posStyle = computed(() => {
 .cur-tag {
   border: none;
   color: #fff;
-}
-
-.sec-label {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin: 10px 0 6px;
 }
 
 .candidate {

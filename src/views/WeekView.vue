@@ -65,7 +65,6 @@ function toggleVisible(pid: PersonId): void {
 
       <el-divider direction="vertical" />
 
-      <span class="lbl">拖刷</span>
       <el-radio-group v-model="brush" size="small">
         <el-radio-button :value="null">关</el-radio-button>
         <el-radio-button v-for="p in config.state.persons" :key="p.id" :value="p.id">

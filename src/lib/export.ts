@@ -106,16 +106,18 @@ export function exportRendered(): void {
           const c = anchor
           lines.push(c.name)
           if (c.location) lines.push(c.location)
+          // 课程 = 人员实色底 + 白字（与页面一致）
           const base = config.personById[c.personId].color
-          fill = mixWithWhite(base, 0.32)
-          fontColor = darken(base, 0.75)
+          fill = base.replace('#', '').toUpperCase()
+          fontColor = 'FFFFFF'
         }
 
         if (info.duty) {
           lines.push(`▶ ${config.personName(info.duty.personId)}${info.conflict ? '（冲突）' : ''}`)
           if (!anchor) {
+            // 排班 = 浅色底 + 人员深字
             const base = config.personById[info.duty.personId].color
-            fill = mixWithWhite(base, 0.25)
+            fill = mixWithWhite(base, 0.2)
             fontColor = darken(base, 0.75)
           }
         }
