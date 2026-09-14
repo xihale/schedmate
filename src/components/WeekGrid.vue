@@ -82,11 +82,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
     </div>
 
     <template v-for="p in periodLabels" :key="p">
-      <div class="period-label">
-        第<br />
-        {{ p }}
-        <br />节
-      </div>
+      <div class="period-label">{{ p }}</div>
       <DutyCell
         v-for="d in 7"
         :key="`${p}-${d}`"
@@ -150,12 +146,10 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 
 .period-label {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--el-text-color-secondary);
-  line-height: 1.3;
   border-right: 1px solid var(--el-border-color-dark);
 }
 </style>

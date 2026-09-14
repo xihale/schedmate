@@ -33,7 +33,7 @@ export function exportMonthDuties(): void {
   for (const week of group.weeks) {
     const aoa: (string | number)[][] = []
     aoa.push(['节次\\星期', ...DAY_NAMES])
-    for (let p = 1; p <= PERIOD_COUNT; p++) aoa.push([`第${p}节`, '', '', '', '', '', '', ''])
+    for (let p = 1; p <= PERIOD_COUNT; p++) aoa.push([p, '', '', '', '', '', '', ''])
 
     const ws = XLSX.utils.aoa_to_sheet(aoa)
 
