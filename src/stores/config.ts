@@ -10,11 +10,11 @@ const KEY = 'schedmate:v2:config'
 interface ConfigState {
   persons: Person[]
   semesterStart: string // 第1周周一，ISO 日期
-  brushPersonId: PersonId | null // 拖刷人选，null = 关
   ui: {
     week: number
     showA: boolean
     showB: boolean
+    hideCourses: boolean // 只看排班：课程块退为浅灰，排班块变实色
   }
 }
 
@@ -34,8 +34,7 @@ export const useConfigStore = defineStore('config', () => {
         { id: 'B', name: 'B', color: '#41A86E' },
       ],
       semesterStart: DEFAULT_START,
-      brushPersonId: null,
-      ui: { week: currentWeek(DEFAULT_START), showA: true, showB: true },
+      ui: { week: currentWeek(DEFAULT_START), showA: true, showB: true, hideCourses: false },
     }),
   )
   persistOn(() => state.value, KEY)

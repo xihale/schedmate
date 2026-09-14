@@ -3,27 +3,33 @@ import { ref } from 'vue'
 import { exportDutySummary, exportRendered } from '../lib/export'
 
 const visible = defineModel<boolean>({ required: true })
-const kind = ref<'duty' | 'rendered'>('duty')
+const kind = ref<'duties' | 'full' | 'summary'>('duties')
 
 function doExport(): void {
-  if (kind.value === 'duty') exportDutySummary()
-  else exportRendered()
+  if (kind.value === 'summary') exportDutySummary()
+  else exportRendered(kind.value === 'full')
 }
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="导出 xlsx" width="460px">
+  <el-dialog v-model="visible" title="导出 xlsx" width="480px">
     <el-radio-group v-model="kind" class="kinds">
-      <el-radio value="duty">
+      <el-radio value="duties">
+        <div>
+          <div>排班情况</div>
+          <div class="desc">只看排班：每周一 sheet，谁被排在哪一目了然</div>
+        </div>
+      </el-radio>
+      <el-radio value="full">
+        <div>
+          <div>带课程的排班情况</div>
+          <div class="desc">课程染色 + 课程名 + 排班标记</div>
+        </div>
+      </el-radio>
+      <el-radio value="summary">
         <div>
           <div>排班总表</div>
           <div class="desc">明细（周/星期/日期/节次/人员）+ 按人按周汇总</div>
-        </div>
-      </el-radio>
-      <el-radio value="rendered">
-        <div>
-          <div>课表排班渲染表</div>
-          <div class="desc">每周一 sheet 复刻课表网格：课程染色、连堂合并、排班标记</div>
         </div>
       </el-radio>
     </el-radio-group>

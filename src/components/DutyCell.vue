@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
 import { darken, rgba } from '../lib/palette'
@@ -9,15 +9,17 @@ const props = defineProps<{
   day: number
   period: number
   preview?: boolean
+  previewPid?: 'A' | 'B' | null
   halfCount: number
 }>()
 
-defineEmits<{ press: [e: MouseEvent]; enter: [] }>()
+const emit = defineEmits<{ press: [pid: 'A' | 'B', e: MouseEvent]; enter: [pid: 'A' | 'B'] }>()
 
 const config = useConfigStore()
 const { cell } = useSchedule()
 
 const info = computed(() => cell(props.week, props.day, props.period))
+const hideCourses = computed(() => config.state.ui.hideCourses)
 
 /** 左 A 右 B */
 const sides = computed(() => [
@@ -28,46 +30,60 @@ const sides = computed(() => [
 function halfStyle(side: (typeof sides.value)[number]): Record<string, string> {
   const personColor = config.personById[side.pid].color
   const style: Record<string, string> = {}
-  // 有课 = 人员实色块（不看课程名）
   if (side.half.status === 'course') {
-    style.background = personColor
+    // 有课：正常视图为人员实色块；只看排班时退为浅灰
+    style.background = hideCourses.value ? '#F0F1F4' : personColor
     if (side.half.course.start === props.period) {
       style.title = `${side.half.course.name}${side.half.course.location ? ' · ' + side.half.course.location : ''}`
     }
   }
-  // 排班 = 浅色底 + 人名
   if (info.value.duty?.personId === side.pid && side.half.status !== 'course') {
-    style.background = rgba(personColor, 0.16)
-    style.color = `#${darken(personColor, 0.8)}`
+    // 排班：正常为浅色底+深字；只看排班时为实色底+白字
+    style.background = hideCourses.value ? personColor : rgba(personColor, 0.16)
+    style.color = hideCourses.value ? '#fff' : `#${darken(personColor, 0.8)}`
   }
   return style
 }
 
-function dutyTagStyle(side: (typeof sides.value)[number]): Record<string, string> {
-  return { color: `#${darken(config.personById[side.pid].color, 0.8)}` }
+/** 点到有课的半格：抖一下表示不可排 */
+const shakePid = ref<'A' | 'B' | null>(null)
+function onDown(side: (typeof sides.value)[number], e: MouseEvent): void {
+  if (side.half.status === 'course') {
+    shakePid.value = side.pid
+    window.setTimeout(() => (shakePid.value = null), 350)
+    return
+  }
+  emit('press', side.pid, e)
+}
+
+function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> {
+  return {
+    'is-nodata': side.half.status === 'nodata',
+    'is-preview': !!props.preview && props.previewPid === side.pid,
+    'is-shake': shakePid.value === side.pid,
+  }
 }
 </script>
 
 <template>
   <div
     class="dcell"
-    :class="{ 'is-preview': preview, 'is-conflict': info.conflict }"
+    :class="{ 'is-conflict': info.conflict }"
     :style="{ '--halves': halfCount }"
-    @pointerdown="$emit('press', $event)"
-    @pointerenter="$emit('enter')"
   >
     <div
       v-for="side in sides"
       v-show="side.visible"
       :key="side.pid"
       class="half"
-      :class="{ 'is-nodata': side.half.status === 'nodata' }"
+      :class="halfClass(side)"
       :style="halfStyle(side)"
+      @pointerdown="onDown(side, $event)"
+      @pointerenter="$emit('enter', side.pid)"
     >
       <span
-        v-if="info.duty?.personId === side.pid"
+        v-if="info.duty?.personId === side.pid && side.half.status !== 'course'"
         class="duty-tag"
-        :style="dutyTagStyle(side)"
         :title="`已排：${config.personName(side.pid)}${info.duty.note ? ' · ' + info.duty.note : ''}`"
       >
         {{ config.personName(side.pid) }}
@@ -84,12 +100,6 @@ function dutyTagStyle(side: (typeof sides.value)[number]): Record<string, string
   background: #fff;
   border-right: 1px solid var(--el-border-color-extra-light);
   border-bottom: 1px solid var(--el-border-color-extra-light);
-  cursor: pointer;
-  transition: background-color 0.12s;
-}
-
-.dcell:hover {
-  background: #fafbfc;
 }
 
 .dcell.edge-r {
@@ -100,11 +110,6 @@ function dutyTagStyle(side: (typeof sides.value)[number]): Record<string, string
   border-bottom: none;
 }
 
-.dcell.is-preview {
-  background: var(--el-color-primary-light-8);
-  box-shadow: inset 0 0 0 2px var(--el-color-primary);
-}
-
 .dcell.is-conflict {
   box-shadow: inset 0 0 0 2px var(--el-color-danger);
 }
@@ -113,6 +118,8 @@ function dutyTagStyle(side: (typeof sides.value)[number]): Record<string, string
   position: relative;
   min-width: 0;
   overflow: hidden;
+  cursor: pointer;
+  transition: background-color 0.12s;
 }
 
 /* 左右分层的 A/B 分隔线 */
@@ -123,6 +130,20 @@ function dutyTagStyle(side: (typeof sides.value)[number]): Record<string, string
 /* 未导入（视作可排）：斜纹提示 */
 .half.is-nodata {
   background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(0, 0, 0, 0.035) 6px 8px);
+}
+
+.half.is-preview {
+  box-shadow: inset 0 0 0 2px var(--el-color-primary);
+}
+
+.half.is-shake {
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  30% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
 }
 
 .duty-tag {

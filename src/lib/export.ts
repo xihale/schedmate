@@ -2,7 +2,6 @@ import * as XLSX from 'xlsx-js-style'
 import { DAY_NAMES, PERIOD_COUNT, WEEK_COUNT, parseDutyKey } from '../types'
 import type { Course } from '../types'
 import { useSchedule } from '../composables/useSchedule'
-import { darken, mixWithWhite } from './palette'
 import { courseDate, fmtISO } from './dates'
 
 const thin = { style: 'thin', color: { rgb: 'D0D7DE' } }
@@ -68,8 +67,12 @@ export function exportDutySummary(): void {
   XLSX.writeFile(wb, '排班总表.xlsx')
 }
 
-/** 导出「课表+排班渲染表」：每周一 sheet 复刻 节次×星期 网格，含课程色与排班标记 */
-export function exportRendered(): void {
+/**
+ * 导出网格渲染表：每周一 sheet 复刻 节次×星期 网格。
+ * includeCourses=true：课程实色底+白字课程名，排班浅色底
+ * includeCourses=false：只显示排班（实色底白字人名），课程留白
+ */
+export function exportRendered(includeCourses: boolean): void {
   const { cell, config, timetable, duty } = useSchedule()
   const wb = XLSX.utils.book_new()
 
@@ -98,42 +101,44 @@ export function exportRendered(): void {
         let fill = 'FFFFFF'
         let fontColor = '333333'
 
-        if (aCourse && bCourse) {
-          lines.push(`【A】${aCourse.name}${aCourse.location ? ` ${aCourse.location}` : ''}`)
-          lines.push(`【B】${bCourse.name}${bCourse.location ? ` ${bCourse.location}` : ''}`)
-          fill = 'EDF0F3'
-        } else if (anchor) {
-          const c = anchor
-          lines.push(c.name)
-          if (c.location) lines.push(c.location)
-          // 课程 = 人员实色底 + 白字（与页面一致）
-          const base = config.personById[c.personId].color
-          fill = base.replace('#', '').toUpperCase()
-          fontColor = 'FFFFFF'
-        }
-
-        if (info.duty) {
-          lines.push(`▶ ${config.personName(info.duty.personId)}${info.conflict ? '（冲突）' : ''}`)
-          if (!anchor) {
-            // 排班 = 浅色底 + 人员深字
-            const base = config.personById[info.duty.personId].color
-            fill = mixWithWhite(base, 0.2)
-            fontColor = darken(base, 0.75)
+        if (anchor && includeCourses) {
+          if (aCourse && bCourse) {
+            lines.push(`【A】${aCourse.name}${aCourse.location ? ` ${aCourse.location}` : ''}`)
+            lines.push(`【B】${bCourse.name}${bCourse.location ? ` ${bCourse.location}` : ''}`)
+            fill = 'EDF0F3'
+          } else {
+            lines.push(anchor.name)
+            if (anchor.location) lines.push(anchor.location)
+            // 课程 = 人员实色底 + 白字（与页面一致）
+            const base = config.personById[anchor.personId].color
+            fill = base.replace('#', '').toUpperCase()
+            fontColor = 'FFFFFF'
           }
         }
 
-        if (anchor && anchor.end > anchor.start) {
+        if (info.duty) {
+          const dn = config.personName(info.duty.personId)
+          const base = config.personById[info.duty.personId].color
+          if (anchor && includeCourses) {
+            lines.push(`▶ ${dn}${info.conflict ? '（冲突）' : ''}`)
+          } else {
+            lines.push(`${dn}${info.conflict ? '（冲突）' : ''}`)
+            fill = base.replace('#', '').toUpperCase()
+            fontColor = 'FFFFFF'
+          }
+        }
+
+        if (anchor && includeCourses && anchor.end > anchor.start) {
           merges.push({ s: { r: p, c: day }, e: { r: p + (anchor.end - anchor.start), c: day } })
         }
 
         if (lines.length > 0) (ws as Record<string, AnyCell>)[addr] = { t: 's', v: lines.join('\n') }
 
-        const isHeader = false
-        const c = (ws as Record<string, AnyCell>)[addr]
-        c.s = {
+        const target = (ws as Record<string, AnyCell>)[addr]
+        target.s = {
           ...allBorders,
           alignment: centerWrap,
-          font: { bold: isHeader, sz: 10, color: { rgb: fontColor } },
+          font: { bold: false, sz: 10, color: { rgb: fontColor } },
           fill: { fgColor: { rgb: fill } },
         }
       }
@@ -161,5 +166,5 @@ export function exportRendered(): void {
     XLSX.utils.book_append_sheet(wb, ws, `第${week}周`)
   }
 
-  XLSX.writeFile(wb, '课表排班渲染表.xlsx')
+  XLSX.writeFile(wb, includeCourses ? '课表排班渲染表.xlsx' : '排班情况.xlsx')
 }

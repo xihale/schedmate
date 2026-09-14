@@ -16,9 +16,9 @@ const week = computed({
   set: (v: number) => (config.state.ui.week = v),
 })
 
-const brush = computed({
-  get: () => config.state.brushPersonId,
-  set: (v: string | null) => (config.state.brushPersonId = (v as never) ?? null),
+const dutiesOnly = computed({
+  get: () => config.state.ui.hideCourses,
+  set: (v: boolean) => (config.state.ui.hideCourses = v),
 })
 
 /** 月分组与当前月；切月默认落到该月第一周 */
@@ -70,12 +70,9 @@ function toggleVisible(pid: PersonId): void {
 
       <el-divider direction="vertical" />
 
-      <el-radio-group v-model="brush" size="small">
-        <el-radio-button :value="null">关</el-radio-button>
-        <el-radio-button v-for="p in config.state.persons" :key="p.id" :value="p.id">
-          {{ p.name }}
-        </el-radio-button>
-      </el-radio-group>
+      <el-button size="small" :type="dutiesOnly ? 'primary' : 'default'" :plain="!dutiesOnly" round @click="dutiesOnly = !dutiesOnly">
+        只看排班
+      </el-button>
 
       <el-divider direction="vertical" />
 

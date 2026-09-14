@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
@@ -7,7 +7,6 @@ import { DAY_NAMES, PERIOD_COUNT, dutyKey } from '../types'
 import type { PersonId } from '../types'
 import { courseDate, fmtMD } from '../lib/dates'
 import DutyCell from './DutyCell.vue'
-import DutyPopover from './DutyPopover.vue'
 
 const config = useConfigStore()
 const schedule = useSchedule()
@@ -15,27 +14,16 @@ const { available } = schedule
 
 const week = computed(() => config.state.ui.week)
 
-const popover = reactive({ visible: false, week: 1, day: 1, period: 1, x: 0, y: 0 })
+/** 拖动状态：同一半格（同人同列）从起始节到当前节；起止相同即为点击 */
+const drag = ref<{ pid: PersonId; day: number; start: number; end: number } | null>(null)
 
-/** 拖刷状态：同一天从起始节到当前节 */
-const drag = ref<{ day: number; start: number; end: number } | null>(null)
-
-function onCellPress(day: number, period: number, e: MouseEvent): void {
-  const brushPid = config.state.brushPersonId
-  if (brushPid) {
-    drag.value = { day, start: period, end: period }
-  } else {
-    popover.week = week.value
-    popover.day = day
-    popover.period = period
-    popover.x = e.clientX
-    popover.y = e.clientY
-    popover.visible = true
-  }
+function onHalfPress(pid: PersonId, day: number, period: number): void {
+  drag.value = { pid, day, start: period, end: period }
 }
 
-function onCellEnter(day: number, period: number): void {
-  if (drag.value && drag.value.day === day) drag.value.end = period
+function onHalfEnter(pid: PersonId, day: number, period: number): void {
+  const d = drag.value
+  if (d && d.pid === pid && d.day === day) d.end = period
 }
 
 function isPreview(day: number, period: number): boolean {
@@ -49,25 +37,31 @@ function commitDrag(): void {
   const d = drag.value
   drag.value = null
   if (!d) return
-  const brushPid = config.state.brushPersonId
-  if (!brushPid) return
+  const key = dutyKey(week.value, d.day, d.start)
+
+  // 点击：切换该半格的排班
+  if (d.start === d.end) {
+    const existing = schedule.duty.dutyMap[key]
+    if (existing?.personId === d.pid) {
+      schedule.duty.setDuty(key, null)
+    } else if (available(d.pid, week.value, d.day, d.start)) {
+      schedule.duty.setDuty(key, { personId: d.pid })
+    }
+    // 有课或已被另一人占用：颜色已说明，静默忽略
+    return
+  }
+
+  // 拖动：整段连排，遇不可排的节跳过
   const [lo, hi] = d.start <= d.end ? [d.start, d.end] : [d.end, d.start]
   const entries: Record<string, { personId: PersonId }> = {}
   let skipped = 0
   for (let p = lo; p <= hi; p++) {
-    if (available(brushPid, week.value, d.day, p)) {
-      entries[dutyKey(week.value, d.day, p)] = { personId: brushPid }
-    } else {
-      skipped++
-    }
+    if (available(d.pid, week.value, d.day, p)) entries[dutyKey(week.value, d.day, p)] = { personId: d.pid }
+    else skipped++
   }
   const written = Object.keys(entries).length
   if (written > 0) schedule.duty.batchSet(entries)
-  if (written > 1) {
-    ElMessage.success(`已连排 ${written} 节${skipped > 0 ? `，跳过 ${skipped} 节` : ''}`)
-  } else if (skipped > 0) {
-    ElMessage.warning(`该格不可排：拖刷人此节有课或已被排`)
-  }
+  if (written > 1 && skipped > 0) ElMessage.success(`已连排 ${written} 节，跳过 ${skipped} 节`)
 }
 
 function onWindowPointerUp(): void {
@@ -110,21 +104,13 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
         :day="d"
         :period="p"
         :preview="isPreview(d, p)"
+        :preview-pid="drag?.pid ?? null"
         :half-count="visibleHalfCount"
         :class="{ 'edge-r': d === 7, 'edge-b': p === PERIOD_COUNT }"
-        @press="(e: MouseEvent) => onCellPress(d, p, e)"
-        @enter="onCellEnter(d, p)"
+        @press="(pid) => onHalfPress(pid, d, p)"
+        @enter="(pid) => onHalfEnter(pid, d, p)"
       />
     </template>
-
-    <DutyPopover
-      v-model:visible="popover.visible"
-      :week="popover.week"
-      :day="popover.day"
-      :period="popover.period"
-      :x="popover.x"
-      :y="popover.y"
-    />
   </div>
 </template>
 
