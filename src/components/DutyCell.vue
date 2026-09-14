@@ -127,6 +127,7 @@ const soloDuty = computed(() => {
   min-height: 58px;
   background: #fff;
   border-bottom: 1px solid var(--el-border-color-extra-light);
+  container-type: inline-size;
 }
 
 .dcell.edge-b {
@@ -191,6 +192,8 @@ const soloDuty = computed(() => {
   align-items: center;
   justify-content: center;
   font-size: 11px;
+  /* 半格宽度 = 1/N 格宽，字随宽度缩放，人多格窄时也不挤爆 */
+  font-size: clamp(9px, calc(90cqw / var(--halves, 1)), 12px);
   font-weight: 700;
   overflow: hidden;
   white-space: nowrap;
@@ -201,6 +204,7 @@ const soloDuty = computed(() => {
   min-height: 58px;
   background: #fff;
   border-bottom: 1px solid var(--el-border-color-extra-light);
+  container-type: inline-size;
 }
 
 .solo.is-preview {
@@ -213,7 +217,8 @@ const soloDuty = computed(() => {
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 12px;
+  /* 人名文字随格子宽度缩放：格窄字小，格宽字大 */
+  font-size: clamp(9px, 18cqw, 13px);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;

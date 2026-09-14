@@ -132,4 +132,14 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: var(--el-color-primary);
 }
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 12px;
+  }
+
+  .app-main {
+    padding: 8px 10px;
+  }
+}
 </style>

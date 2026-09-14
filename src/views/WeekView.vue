@@ -120,8 +120,24 @@ function toggleVisible(pid: PersonId): void {
   display: flex;
   align-items: center;
   gap: 10px;
+  row-gap: 6px;
   flex-wrap: wrap;
   padding: 2px 2px 0;
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    gap: 6px;
+  }
+
+  .toolbar :deep(.el-radio-button__inner) {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .toolbar :deep(.el-button) {
+    padding: 5px 8px;
+  }
 }
 
 .person-toggle {
