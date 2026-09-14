@@ -9,7 +9,6 @@ const props = defineProps<{
   day: number
   period: number
   preview?: boolean
-  highlight?: boolean
   halfCount: number
 }>()
 
@@ -20,6 +19,7 @@ const { cell } = useSchedule()
 
 const info = computed(() => cell(props.week, props.day, props.period))
 
+/** 左 A 右 B */
 const sides = computed(() => [
   { pid: 'A' as const, half: info.value.a, visible: config.state.ui.showA },
   { pid: 'B' as const, half: info.value.b, visible: config.state.ui.showB },
@@ -28,12 +28,14 @@ const sides = computed(() => [
 function halfStyle(side: (typeof sides.value)[number]): Record<string, string> {
   const personColor = config.personById[side.pid].color
   const style: Record<string, string> = {}
-  // 课程 = 人员深色底白字（事实，视觉最重）
+  // 有课 = 人员实色块（不看课程名）
   if (side.half.status === 'course') {
     style.background = personColor
-    style.color = '#fff'
+    if (side.half.course.start === props.period) {
+      style.title = `${side.half.course.name}${side.half.course.location ? ' · ' + side.half.course.location : ''}`
+    }
   }
-  // 排班 = 浅色底人员深字（决策，视觉次之）；与课程同格时保持课程深色，靠冲突红环提示
+  // 排班 = 浅色底 + 人名
   if (info.value.duty?.personId === side.pid && side.half.status !== 'course') {
     style.background = rgba(personColor, 0.16)
     style.color = `#${darken(personColor, 0.8)}`
@@ -42,23 +44,14 @@ function halfStyle(side: (typeof sides.value)[number]): Record<string, string> {
 }
 
 function dutyTagStyle(side: (typeof sides.value)[number]): Record<string, string> {
-  const personColor = config.personById[side.pid].color
-  return { color: side.half.status === 'course' ? '#fff' : `#${darken(personColor, 0.8)}` }
-}
-
-function isAnchor(side: (typeof sides.value)[number]): boolean {
-  return side.half.status === 'course' && side.half.course.start === props.period
+  return { color: `#${darken(config.personById[side.pid].color, 0.8)}` }
 }
 </script>
 
 <template>
   <div
     class="dcell"
-    :class="{
-      'is-preview': preview,
-      'is-conflict': info.conflict,
-      'is-highlight': highlight,
-    }"
+    :class="{ 'is-preview': preview, 'is-conflict': info.conflict }"
     :style="{ '--halves': halfCount }"
     @pointerdown="$emit('press', $event)"
     @pointerenter="$emit('enter')"
@@ -71,15 +64,6 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
       :class="{ 'is-nodata': side.half.status === 'nodata' }"
       :style="halfStyle(side)"
     >
-      <template v-if="side.half.status === 'course'">
-        <template v-if="isAnchor(side)">
-          <div class="cname" :title="`${side.half.course.name} ${side.half.course.location}`">
-            {{ side.half.course.name }}
-          </div>
-          <div v-if="side.half.course.location" class="cloc">{{ side.half.course.location }}</div>
-        </template>
-      </template>
-
       <span
         v-if="info.duty?.personId === side.pid"
         class="duty-tag"
@@ -95,8 +79,8 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
 <style scoped>
 .dcell {
   display: grid;
-  grid-template-rows: repeat(var(--halves, 2), 1fr);
-  min-height: 68px;
+  grid-template-columns: repeat(var(--halves, 2), 1fr);
+  min-height: 58px;
   background: #fff;
   border-right: 1px solid var(--el-border-color-extra-light);
   border-bottom: 1px solid var(--el-border-color-extra-light);
@@ -116,10 +100,6 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
   border-bottom: none;
 }
 
-.dcell.is-highlight {
-  background: var(--el-color-primary-light-9);
-}
-
 .dcell.is-preview {
   background: var(--el-color-primary-light-8);
   box-shadow: inset 0 0 0 2px var(--el-color-primary);
@@ -131,52 +111,29 @@ function isAnchor(side: (typeof sides.value)[number]): boolean {
 
 .half {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 6px;
   min-width: 0;
   overflow: hidden;
 }
 
+/* 左右分层的 A/B 分隔线 */
 .half + .half {
-  border-top: 1px solid var(--el-border-color-extra-light);
+  border-left: 1px solid #fff;
 }
 
-/* 未导入（视作可排）：斜纹提示，不用文字 */
+/* 未导入（视作可排）：斜纹提示 */
 .half.is-nodata {
   background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(0, 0, 0, 0.035) 6px 8px);
 }
 
-.cname {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
-  max-height: 2.5em;
-  overflow: hidden;
-  text-align: center;
-}
-
-.cloc {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.78);
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .duty-tag {
   position: absolute;
-  top: 2px;
-  right: 3px;
-  font-size: 10px;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1;
-  max-width: calc(100% - 5px);
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

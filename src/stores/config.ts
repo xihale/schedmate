@@ -2,32 +2,40 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Person, PersonId } from '../types'
 import { loadJSON, persistOn } from '../lib/persist'
+import { parseISODate } from '../lib/dates'
 
-const KEY = 'schedmate:v1:config'
+// v2：人员默认名改为 A/B、去掉 tab 与高亮列字段；升 key 使旧配置不干扰
+const KEY = 'schedmate:v2:config'
 
 interface ConfigState {
   persons: Person[]
   semesterStart: string // 第1周周一，ISO 日期
   brushPersonId: PersonId | null // 拖刷人选，null = 关
   ui: {
-    tab: 'week' | 'overview'
     week: number
-    highlightDay: number | null // 从鸟瞰下钻时高亮的列
     showA: boolean
     showB: boolean
   }
 }
 
+/** 默认定位到今天所在周 */
+function currentWeek(startISO: string): number {
+  const diff = Date.now() - parseISODate(startISO).getTime()
+  return Math.min(20, Math.max(1, Math.floor(diff / (7 * 86400000)) + 1))
+}
+
+const DEFAULT_START = '2026-08-31'
+
 export const useConfigStore = defineStore('config', () => {
   const state = ref<ConfigState>(
     loadJSON(KEY, {
       persons: [
-        { id: 'A', name: '同学A', color: '#4C84F0' },
-        { id: 'B', name: '同学B', color: '#41A86E' },
+        { id: 'A', name: 'A', color: '#4C84F0' },
+        { id: 'B', name: 'B', color: '#41A86E' },
       ],
-      semesterStart: '2026-08-31',
+      semesterStart: DEFAULT_START,
       brushPersonId: null,
-      ui: { tab: 'week', week: 1, highlightDay: null, showA: true, showB: true },
+      ui: { week: currentWeek(DEFAULT_START), showA: true, showB: true },
     }),
   )
   persistOn(() => state.value, KEY)

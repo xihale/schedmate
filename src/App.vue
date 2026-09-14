@@ -1,19 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useConfigStore } from './stores/config'
 import { useTimetableStore } from './stores/timetable'
 import ImportBar from './components/ImportBar.vue'
 import ImportDropDialog from './components/ImportDropDialog.vue'
 import WeekView from './views/WeekView.vue'
-import OverviewView from './views/OverviewView.vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-const config = useConfigStore()
 const timetable = useTimetableStore()
-
-const tab = computed({
-  get: () => config.state.ui.tab,
-  set: (v) => (config.state.ui.tab = v),
-})
 
 // ---- 全窗口拖拽导入 ----
 const dropFiles = ref<File[]>([])
@@ -58,19 +50,11 @@ onBeforeUnmount(() => {
       <ImportBar />
     </header>
     <el-main class="app-main">
-      <el-tabs v-model="tab">
-        <el-tab-pane label="周视图" name="week">
-          <div v-if="!timetable.hasAnyData" class="empty-drop">
-            <div class="empty-icon">📅</div>
-            <div class="empty-title">把两份课表 xlsx 拖进窗口</div>
-          </div>
-          <WeekView v-else />
-        </el-tab-pane>
-        <el-tab-pane label="鸟瞰" name="overview">
-          <el-empty v-if="!timetable.hasAnyData" description="先导入课表" />
-          <OverviewView v-else />
-        </el-tab-pane>
-      </el-tabs>
+      <div v-if="!timetable.hasAnyData" class="empty-drop">
+        <div class="empty-icon">📅</div>
+        <div class="empty-title">把两份课表 xlsx 拖进窗口</div>
+      </div>
+      <WeekView v-else />
     </el-main>
 
     <div v-show="overlayVisible" class="drop-overlay">

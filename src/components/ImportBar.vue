@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, Setting, Download } from '@element-plus/icons-vue'
+import { Upload, Setting, Download, Close } from '@element-plus/icons-vue'
 import { useConfigStore } from '../stores/config'
 import { useTimetableStore } from '../stores/timetable'
 import { useImport } from '../composables/useImport'
@@ -48,23 +48,31 @@ function onDropTo(personId: PersonId, e: DragEvent): void {
       @dragleave="dragOverPid === p.id && (dragOverPid = null)"
       @drop.prevent.stop="onDropTo(p.id, $event)"
     >
-      <span class="dot" :style="{ background: p.color }" />
       <el-upload
         :show-file-list="false"
         :auto-upload="false"
         accept=".xlsx"
         :on-change="(f: { raw?: File }) => onFile(p.id, f.raw)"
       >
-        <el-button size="small" :icon="Upload" :loading="importing === p.id">
-          {{ p.name }}·课表
+        <el-button
+          size="small"
+          :icon="Upload"
+          :loading="importing === p.id"
+          :title="`点击或拖入 ${p.name} 的课表 xlsx`"
+          :style="{ color: p.color, fontWeight: 700 }"
+        >
+          {{ p.name }}
         </el-button>
       </el-upload>
-      <span v-if="timetable.state.meta[p.id]" class="meta" :title="timetable.state.meta[p.id]!.fileName">
-        {{ timetable.state.meta[p.id]!.weeks.length }} 周 / {{ timetable.state.meta[p.id]!.courseCount }} 课
-      </span>
-      <el-button v-if="timetable.state.meta[p.id]" link size="small" type="danger" @click="clearPerson(p.id)">
-        移除
-      </el-button>
+      <el-button
+        v-if="timetable.state.meta[p.id]"
+        :icon="Close"
+        link
+        size="small"
+        type="danger"
+        title="移除课表（排班记录保留）"
+        @click="clearPerson(p.id)"
+      />
     </div>
 
     <el-divider direction="vertical" />
@@ -88,7 +96,7 @@ function onDropTo(personId: PersonId, e: DragEvent): void {
 .person-chip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 3px 6px;
   border-radius: 8px;
   border: 1px dashed transparent;
@@ -100,21 +108,5 @@ function onDropTo(personId: PersonId, e: DragEvent): void {
 .person-chip.drag-over {
   border-color: var(--el-color-primary);
   background: var(--el-color-primary-light-9);
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: none;
-}
-
-.meta {
-  font-size: 12px;
-  color: #909399;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

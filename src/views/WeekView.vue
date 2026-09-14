@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowLeft, ArrowRight, RefreshLeft, RefreshRight } from '@element-plus/icons-vue'
+import { RefreshLeft, RefreshRight } from '@element-plus/icons-vue'
 import { useConfigStore } from '../stores/config'
 import { useDutyStore } from '../stores/duty'
 import { WEEK_COUNT } from '../types'
 import type { PersonId } from '../types'
-import { weekRangeLabel } from '../lib/dates'
+import { monthGroups, weekRangeLabel } from '../lib/dates'
 import WeekGrid from '../components/WeekGrid.vue'
 
 const config = useConfigStore()
@@ -21,23 +21,21 @@ const brush = computed({
   set: (v: string | null) => (config.state.brushPersonId = (v as never) ?? null),
 })
 
-const weekOptions = computed(() =>
-  Array.from({ length: WEEK_COUNT }, (_, i) => ({
-    value: i + 1,
-    label: `第 ${i + 1} 周（${weekRangeLabel(config.state.semesterStart, i + 1)}）`,
-  })),
-)
+/** 月分组与当前月；切月默认落到该月第一周 */
+const groups = computed(() => monthGroups(config.state.semesterStart, WEEK_COUNT))
+const currentGroup = computed(() => groups.value.find((g) => g.weeks.includes(week.value)) ?? groups.value[0])
+const monthWeeks = computed(() => currentGroup.value?.weeks ?? [])
 
-function stepWeek(delta: number): void {
-  const next = Math.min(WEEK_COUNT, Math.max(1, week.value + delta))
-  week.value = next
+function pickMonth(month: string | number | boolean | undefined): void {
+  const g = groups.value.find((x) => x.month === Number(month))
+  if (g && !g.weeks.includes(week.value)) week.value = g.weeks[0]
 }
 
 /** 本周每人已排节数 */
 const weeklyCounts = computed(() => {
   const c: Record<PersonId, number> = { A: 0, B: 0 }
   for (const [key, entry] of Object.entries(duty.state.map)) {
-    if (Number(key.split('|')[0]) === config.state.ui.week) c[entry.personId]++
+    if (Number(key.split('|')[0]) === week.value) c[entry.personId]++
   }
   return c
 })
@@ -55,13 +53,20 @@ function toggleVisible(pid: PersonId): void {
 <template>
   <div class="week-view">
     <div class="toolbar">
-      <el-button-group>
-        <el-button :icon="ArrowLeft" @click="stepWeek(-1)" />
-        <el-select v-model="week" style="width: 190px">
-          <el-option v-for="o in weekOptions" :key="o.value" :value="o.value" :label="o.label" />
-        </el-select>
-        <el-button :icon="ArrowRight" @click="stepWeek(1)" />
-      </el-button-group>
+      <el-radio-group :model-value="currentGroup?.month" @update:model-value="pickMonth">
+        <el-radio-button v-for="g in groups" :key="g.month" :value="g.month">{{ g.month }}月</el-radio-button>
+      </el-radio-group>
+
+      <el-radio-group v-model="week">
+        <el-radio-button
+          v-for="w in monthWeeks"
+          :key="w"
+          :value="w"
+          :title="weekRangeLabel(config.state.semesterStart, w)"
+        >
+          第{{ w }}周
+        </el-radio-button>
+      </el-radio-group>
 
       <el-divider direction="vertical" />
 
@@ -79,7 +84,7 @@ function toggleVisible(pid: PersonId): void {
         :key="p.id"
         class="person-toggle"
         :class="{ off: !isVisible(p.id) }"
-        :title="`点击显示/隐藏 ${p.name} 的课程`"
+        :title="`点击显示/隐藏 ${p.name}`"
         @click="toggleVisible(p.id)"
       >
         <span class="dot" :style="{ background: p.color }" />
@@ -114,11 +119,6 @@ function toggleVisible(pid: PersonId): void {
   gap: 10px;
   flex-wrap: wrap;
   padding: 2px 2px 0;
-}
-
-.lbl {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
 }
 
 .person-toggle {

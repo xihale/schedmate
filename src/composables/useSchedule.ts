@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import type { Course, DutyEntry, PersonId } from '../types'
-import { PERIOD_COUNT, WEEK_COUNT, dutyKey } from '../types'
+import { dutyKey } from '../types'
 import { useTimetableStore } from '../stores/timetable'
 import { useDutyStore } from '../stores/duty'
 import { useConfigStore } from '../stores/config'
@@ -66,43 +66,5 @@ export function useSchedule() {
     return half(personId, week, day, period).status !== 'course'
   }
 
-  /** 鸟瞰模型：20 周 × 7 天聚合 */
-  const overview = computed(() => {
-    const rows: {
-      week: number
-      days: { week: number; day: number; aCount: number; bCount: number; free: number; dutyTotal: number }[]
-    }[] = []
-    for (let week = 1; week <= WEEK_COUNT; week++) {
-      const days = []
-      for (let day = 1; day <= 7; day++) {
-        let aCount = 0
-        let bCount = 0
-        let free = 0
-        for (let p = 1; p <= PERIOD_COUNT; p++) {
-          const info = cell(week, day, p)
-          if (info.duty) info.duty.personId === 'A' ? aCount++ : bCount++
-          else if (available('A', week, day, p) || available('B', week, day, p)) free++
-        }
-        days.push({ week, day, aCount, bCount, free, dutyTotal: aCount + bCount })
-      }
-      rows.push({ week, days })
-    }
-    return rows
-  })
-
-  const totals = computed(() => {
-    let a = 0
-    let b = 0
-    let free = 0
-    for (const row of overview.value) {
-      for (const d of row.days) {
-        a += d.aCount
-        b += d.bCount
-        free += d.free
-      }
-    }
-    return { a, b, free, dutyTotal: a + b }
-  })
-
-  return { config, timetable, duty, busyIndex, importedWeeks, half, cell, available, overview, totals }
+  return { config, timetable, duty, busyIndex, importedWeeks, half, cell, available }
 }

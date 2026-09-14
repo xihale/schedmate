@@ -42,7 +42,7 @@ export interface ImportReport {
 }
 
 export const WEEK_COUNT = 20
-export const PERIOD_COUNT = 8
+export const PERIOD_COUNT = 7
 export const DAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] as const
 
 export const dutyKey = (week: number, day: number, period: number) => `${week}|${day}|${period}`

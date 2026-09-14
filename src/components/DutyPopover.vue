@@ -56,7 +56,7 @@ function saveNote(): void {
 
 function personStatus(pid: 'A' | 'B'): { schedulable: boolean; text: string; kind: 'free' | 'busy' | 'nodata' } {
   const h = schedule.half(pid, props.week, props.day, props.period)
-  if (h.status === 'course') return { schedulable: false, text: `有课：${h.course.name}`, kind: 'busy' }
+  if (h.status === 'course') return { schedulable: false, text: '有课', kind: 'busy' }
   if (h.status === 'nodata') return { schedulable: true, text: '未导入，视作空闲', kind: 'nodata' }
   return { schedulable: true, text: '空闲', kind: 'free' }
 }

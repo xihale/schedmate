@@ -64,9 +64,9 @@ function commitDrag(): void {
   const written = Object.keys(entries).length
   if (written > 0) schedule.duty.batchSet(entries)
   if (written > 1) {
-    ElMessage.success(`已连排 ${written} 节${skipped > 0 ? `，跳过 ${skipped} 节（无课冲突或已排）` : ''}`)
+    ElMessage.success(`已连排 ${written} 节${skipped > 0 ? `，跳过 ${skipped} 节` : ''}`)
   } else if (skipped > 0) {
-    ElMessage.warning(`该格不可排：所选拖刷人此节有课，或已被排过`)
+    ElMessage.warning(`该格不可排：拖刷人此节有课或已被排`)
   }
 }
 
@@ -81,15 +81,10 @@ function dayDate(day: number): string {
   return fmtMD(courseDate(config.state.semesterStart, week.value, day))
 }
 
-function toggleHighlight(day: number): void {
-  config.state.ui.highlightDay = config.state.ui.highlightDay === day ? null : day
-}
-
-const highlightDay = computed(() => config.state.ui.highlightDay)
 const showA = computed(() => config.state.ui.showA)
 const showB = computed(() => config.state.ui.showB)
 
-const visibleHalfCount = computed(() => (showA.value ? 1 : 0) + (showB.value ? 1 : 0))
+const visibleHalfCount = computed(() => Math.max(1, (showA.value ? 1 : 0) + (showB.value ? 1 : 0)))
 
 const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 </script>
@@ -97,19 +92,13 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 <template>
   <div class="week-grid" :class="{ dragging: !!drag }">
     <div class="corner" />
-    <div
-      v-for="(dname, i) in DAY_NAMES"
-      :key="dname"
-      class="day-head cell-base"
-      :class="{ 'is-highlight': highlightDay === i + 1 }"
-      @click="toggleHighlight(i + 1)"
-    >
+    <div v-for="(dname, i) in DAY_NAMES" :key="dname" class="day-head">
       <span class="dname">{{ dname }}</span>
       <span class="ddate">{{ dayDate(i + 1) }}</span>
     </div>
 
     <template v-for="p in periodLabels" :key="p">
-      <div class="period-label cell-base">
+      <div class="period-label">
         第<br />
         {{ p }}
         <br />节
@@ -121,7 +110,6 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
         :day="d"
         :period="p"
         :preview="isPreview(d, p)"
-        :highlight="highlightDay === d"
         :half-count="visibleHalfCount"
         :class="{ 'edge-r': d === 7, 'edge-b': p === PERIOD_COUNT }"
         @press="(e: MouseEvent) => onCellPress(d, p, e)"
@@ -169,16 +157,6 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   gap: 6px;
   padding: 8px 4px;
   border-bottom: 1px solid var(--el-border-color-lighter);
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.day-head.is-highlight {
-  background: var(--el-color-primary-light-9);
-}
-
-.day-head.is-highlight .dname {
-  color: var(--el-color-primary);
 }
 
 .dname {
