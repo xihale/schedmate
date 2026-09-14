@@ -61,6 +61,8 @@ function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> 
     'is-nodata': side.half.status === 'nodata',
     'is-preview': !!props.preview && props.previewPid === side.pid,
     'is-shake': shakePid.value === side.pid,
+    // 缺口：此人前一周的排班在本周因课程冲突断档，红框提示手动调整
+    'is-gap': info.value.gapFrom === side.pid,
   }
 }
 </script>
@@ -134,6 +136,12 @@ function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> 
 
 .half.is-preview {
   box-shadow: inset 0 0 0 2px var(--el-color-primary);
+}
+
+/* 缺口：应延续的排班因课程冲突空缺，红框提示手动调整 */
+.half.is-gap {
+  box-shadow: inset 0 0 0 2px var(--el-color-danger);
+  background-color: rgba(245, 108, 108, 0.08);
 }
 
 .half.is-shake {

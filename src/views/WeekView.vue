@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RefreshLeft, RefreshRight } from '@element-plus/icons-vue'
 import { useConfigStore } from '../stores/config'
 import { useDutyStore } from '../stores/duty'
+import { useSchedule } from '../composables/useSchedule'
 import { WEEK_COUNT } from '../types'
 import type { PersonId } from '../types'
 import { monthGroups, weekRangeLabel } from '../lib/dates'
@@ -10,6 +11,7 @@ import WeekGrid from '../components/WeekGrid.vue'
 
 const config = useConfigStore()
 const duty = useDutyStore()
+const { weeksWithGaps } = useSchedule()
 
 const week = computed({
   get: () => config.state.ui.week,
@@ -62,9 +64,10 @@ function toggleVisible(pid: PersonId): void {
           v-for="w in monthWeeks"
           :key="w"
           :value="w"
-          :title="weekRangeLabel(config.state.semesterStart, w)"
+          :title="weeksWithGaps.has(w) ? `第${w}周有与课程冲突的排班，需手动调整` : weekRangeLabel(config.state.semesterStart, w)"
         >
           第{{ w }}周
+          <span v-if="weeksWithGaps.has(w)" class="gap-dot" />
         </el-radio-button>
       </el-radio-group>
 
@@ -154,5 +157,16 @@ function toggleVisible(pid: PersonId): void {
 .person-toggle .count {
   font-weight: 700;
   color: var(--el-text-color-secondary);
+}
+
+/* 周按钮上的缺口提示：该周有排班与课程冲突，待手动调整 */
+.gap-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--el-color-danger);
+  margin-left: 4px;
+  vertical-align: middle;
 }
 </style>

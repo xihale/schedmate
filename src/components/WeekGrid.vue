@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
 import { DAY_NAMES, PERIOD_COUNT, dutyKey } from '../types'
@@ -39,29 +38,25 @@ function commitDrag(): void {
   if (!d) return
   const key = dutyKey(week.value, d.day, d.start)
 
-  // 点击：切换该半格的排班
+  // 点击：切换该半格的排班（含同月向后同步/取消）
   if (d.start === d.end) {
     const existing = schedule.duty.dutyMap[key]
     if (existing?.personId === d.pid) {
-      schedule.duty.setDuty(key, null)
+      schedule.removeWithSync(week.value, d.day, d.start, d.pid)
     } else if (available(d.pid, week.value, d.day, d.start)) {
-      schedule.duty.setDuty(key, { personId: d.pid })
+      schedule.assignWithSync(week.value, d.day, d.start, d.pid)
     }
     // 有课或已被另一人占用：颜色已说明，静默忽略
     return
   }
 
-  // 拖动：整段连排，遇不可排的节跳过
+  // 拖动：整段连排并同步，遇不可排的节跳过
   const [lo, hi] = d.start <= d.end ? [d.start, d.end] : [d.end, d.start]
   const entries: Record<string, { personId: PersonId }> = {}
-  let skipped = 0
   for (let p = lo; p <= hi; p++) {
-    if (available(d.pid, week.value, d.day, p)) entries[dutyKey(week.value, d.day, p)] = { personId: d.pid }
-    else skipped++
+    if (available(d.pid, week.value, d.day, p)) schedule.collectSync(entries, week.value, d.day, p, d.pid)
   }
-  const written = Object.keys(entries).length
-  if (written > 0) schedule.duty.batchSet(entries)
-  if (written > 1 && skipped > 0) ElMessage.success(`已连排 ${written} 节，跳过 ${skipped} 节`)
+  if (Object.keys(entries).length) schedule.duty.batchSet(entries)
 }
 
 function onWindowPointerUp(): void {
