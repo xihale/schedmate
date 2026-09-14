@@ -17,19 +17,19 @@ function doExport(): void {
       <el-radio value="duties">
         <div>
           <div>排班情况</div>
-          <div class="desc">只看排班：每周一 sheet，谁被排在哪一目了然</div>
+          <div class="desc">只看排班：仅当月几周，谁被排在哪一目了然</div>
         </div>
       </el-radio>
       <el-radio value="full">
         <div>
           <div>带课程的排班情况</div>
-          <div class="desc">课程染色 + 课程名 + 排班标记</div>
+          <div class="desc">课程浅色 + 排班实色，仅当月几周</div>
         </div>
       </el-radio>
       <el-radio value="summary">
         <div>
           <div>排班总表</div>
-          <div class="desc">明细（周/星期/日期/节次/人员）+ 按人按周汇总</div>
+          <div class="desc">明细（周/星期/日期/节次/人员）+ 汇总，仅当月几周</div>
         </div>
       </el-radio>
     </el-radio-group>

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
-import { darken, rgba } from '../lib/palette'
+import { rgba } from '../lib/palette'
 
 const props = defineProps<{
   week: number
@@ -31,18 +31,24 @@ function halfStyle(side: (typeof sides.value)[number]): Record<string, string> {
   const personColor = config.personById[side.pid].color
   const style: Record<string, string> = {}
   if (side.half.status === 'course') {
-    // 有课：正常视图为人员实色块；只看排班时退为浅灰
-    style.background = hideCourses.value ? '#F0F1F4' : personColor
-    if (side.half.course.start === props.period) {
-      style.title = `${side.half.course.name}${side.half.course.location ? ' · ' + side.half.course.location : ''}`
-    }
+    // 有课：人员浅色底作背景，让排班的实色更醒目；只看排班时完全隐去
+    style.background = hideCourses.value ? '#fff' : rgba(personColor, 0.14)
   }
   if (info.value.duty?.personId === side.pid && side.half.status !== 'course') {
-    // 排班：正常为浅色底+深字；只看排班时为实色底+白字
-    style.background = hideCourses.value ? personColor : rgba(personColor, 0.16)
-    style.color = hideCourses.value ? '#fff' : `#${darken(personColor, 0.8)}`
+    // 排班：人员实色底 + 白字，一眼看出谁值班
+    style.background = personColor
+    style.color = '#fff'
   }
   return style
+}
+
+/** 课程名悬浮提示只标在连堂锚点节 */
+function halfTitle(side: (typeof sides.value)[number]): string | undefined {
+  if (side.half.status === 'course' && side.half.course.start === props.period) {
+    const c = side.half.course
+    return `${c.name}${c.location ? ' · ' + c.location : ''}`
+  }
+  return undefined
 }
 
 /** 点到有课的半格：抖一下表示不可排 */
@@ -80,6 +86,7 @@ function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> 
       class="half"
       :class="halfClass(side)"
       :style="halfStyle(side)"
+      :title="halfTitle(side)"
       @pointerdown="onDown(side, $event)"
       @pointerenter="$emit('enter', side.pid)"
     >
