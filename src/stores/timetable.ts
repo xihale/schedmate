@@ -4,7 +4,8 @@ import type { Course, ImportMeta, ImportReport, PersonId } from '../types'
 import { loadJSON, persistOn } from '../lib/persist'
 import { parseTimetable } from '../lib/parse'
 
-const KEY = 'schedmate:v1:timetable'
+// v2：人员动态化后 personId 含义改变，升 key 使旧缓存不干扰
+const KEY = 'schedmate:v2:timetable'
 
 interface TimetableState {
   courses: Course[]

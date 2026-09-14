@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { useTimetableStore } from './stores/timetable'
-import ImportBar from './components/ImportBar.vue'
-import ImportDropDialog from './components/ImportDropDialog.vue'
+import { useImport } from './composables/useImport'
+import TopBar from './components/TopBar.vue'
 import WeekView from './views/WeekView.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const timetable = useTimetableStore()
+const { importFiles } = useImport()
 
-// ---- 全窗口拖拽导入 ----
-const dropFiles = ref<File[]>([])
-const dropDialogOpen = ref(false)
+// ---- 全窗口拖拽导入：拖入的每份课表就是一个人 ----
 const overlayVisible = ref(false)
 let hideTimer: number | undefined
 
@@ -29,8 +28,7 @@ function onDrop(e: DragEvent): void {
   const files = [...(e.dataTransfer?.files ?? [])].filter(isXlsx)
   if (files.length === 0) return
   e.preventDefault()
-  dropFiles.value = files
-  dropDialogOpen.value = true
+  importFiles(files)
 }
 
 onMounted(() => {
@@ -47,12 +45,12 @@ onBeforeUnmount(() => {
   <el-container direction="vertical">
     <header class="app-header">
       <div class="brand">SchedMate</div>
-      <ImportBar />
+      <TopBar />
     </header>
     <el-main class="app-main">
       <div v-if="!timetable.hasAnyData" class="empty-drop">
-        <div class="empty-icon">📅</div>
-        <div class="empty-title">把两份课表 xlsx 拖进窗口</div>
+        <div class="empty-title">把课表 xlsx 拖进来</div>
+        <div class="empty-sub">一份文件一个人 · 文件名用中文名会直接作为人名 · 可以一次拖多份</div>
       </div>
       <WeekView v-else />
     </el-main>
@@ -62,8 +60,6 @@ onBeforeUnmount(() => {
         <div class="drop-text">松开导入课表 xlsx</div>
       </div>
     </div>
-
-    <ImportDropDialog v-model="dropDialogOpen" :files="dropFiles" />
   </el-container>
 </template>
 
@@ -73,13 +69,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 16px;
   background: #fff;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
   padding: 0 20px;
-  height: 56px;
+  height: 52px;
 }
 
 .brand {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -96,19 +92,21 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 72px 24px;
-  border: 2px dashed var(--el-border-color);
-  border-radius: 12px;
+  padding: 96px 24px;
+  border: 2px dashed var(--el-border-color-lighter);
+  border-radius: 16px;
   background: #fff;
 }
 
-.empty-icon {
-  font-size: 44px;
+.empty-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
 }
 
-.empty-title {
-  font-size: 16px;
-  font-weight: 600;
+.empty-sub {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 .drop-overlay {

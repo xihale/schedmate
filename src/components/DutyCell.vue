@@ -3,99 +3,118 @@ import { computed, ref } from 'vue'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
 import { rgba } from '../lib/palette'
+import type { Person, PersonId } from '../types'
 
 const props = defineProps<{
   week: number
   day: number
   period: number
   preview?: boolean
-  previewPid?: 'A' | 'B' | null
-  halfCount: number
+  previewPid?: PersonId | null
 }>()
 
-const emit = defineEmits<{ press: [pid: 'A' | 'B', e: MouseEvent]; enter: [pid: 'A' | 'B'] }>()
+const emit = defineEmits<{ press: [pid: PersonId, e: MouseEvent]; enter: [pid: PersonId] }>()
 
 const config = useConfigStore()
 const { cell } = useSchedule()
 
 const info = computed(() => cell(props.week, props.day, props.period))
-const hideCourses = computed(() => config.state.ui.hideCourses)
+const dutiesOnly = computed(() => config.state.ui.hideCourses)
 
-/** 左 A 右 B */
-const sides = computed(() => [
-  { pid: 'A' as const, half: info.value.a, visible: config.state.ui.showA },
-  { pid: 'B' as const, half: info.value.b, visible: config.state.ui.showB },
-])
+/** 未被隐藏的人员，顺序即格子里的左右顺序 */
+const visiblePersons = computed(() => config.state.persons.filter((p) => !config.state.ui.hiddenIds.includes(p.id)))
 
-function halfStyle(side: (typeof sides.value)[number]): Record<string, string> {
-  const personColor = config.personById[side.pid].color
-  const style: Record<string, string> = {}
-  if (side.half.status === 'course') {
-    // 有课：人员浅色底作背景，让排班的实色更醒目；只看排班时完全隐去
-    style.background = hideCourses.value ? '#fff' : rgba(personColor, 0.14)
+/** 点到有课的半格：抖一下表示不可排 */
+const shakePid = ref<PersonId | null>(null)
+function onDown(pid: PersonId, e: MouseEvent): void {
+  const i = config.state.persons.findIndex((p) => p.id === pid)
+  if (info.value.halves[i]?.status === 'course') {
+    shakePid.value = pid
+    window.setTimeout(() => (shakePid.value = null), 350)
+    return
   }
-  if (info.value.duty?.personId === side.pid && side.half.status !== 'course') {
+  emit('press', pid, e)
+}
+
+function halfStyle(p: Person, i: number): Record<string, string> {
+  const style: Record<string, string> = {}
+  const half = info.value.halves[i]
+  if (half?.status === 'course') {
+    // 有课：人员浅色底作背景，让排班的实色更醒目
+    style.background = rgba(p.color, 0.14)
+  }
+  if (info.value.duty?.personId === p.id && half?.status !== 'course') {
     // 排班：人员实色底 + 白字，一眼看出谁值班
-    style.background = personColor
+    style.background = p.color
     style.color = '#fff'
   }
   return style
 }
 
 /** 课程名悬浮提示只标在连堂锚点节 */
-function halfTitle(side: (typeof sides.value)[number]): string | undefined {
-  if (side.half.status === 'course' && side.half.course.start === props.period) {
-    const c = side.half.course
+function halfTitle(i: number): string | undefined {
+  const half = info.value.halves[i]
+  if (half?.status === 'course' && half.course.start === props.period) {
+    const c = half.course
     return `${c.name}${c.location ? ' · ' + c.location : ''}`
   }
   return undefined
 }
 
-/** 点到有课的半格：抖一下表示不可排 */
-const shakePid = ref<'A' | 'B' | null>(null)
-function onDown(side: (typeof sides.value)[number], e: MouseEvent): void {
-  if (side.half.status === 'course') {
-    shakePid.value = side.pid
-    window.setTimeout(() => (shakePid.value = null), 350)
-    return
+function halfClass(p: Person, i: number): Record<string, boolean> {
+  return {
+    'is-nodata': info.value.halves[i]?.status === 'nodata',
+    'is-preview': !!props.preview && props.previewPid === p.id,
+    'is-shake': shakePid.value === p.id,
+    // 缺口：此人前一周的排班在本周因课程冲突断档，红框提示手动调整
+    'is-gap': info.value.gapFrom === p.id,
   }
-  emit('press', side.pid, e)
 }
 
-function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> {
+/** 只看排班：整格只显示当班人 */
+const soloDuty = computed(() => {
+  const d = info.value.duty
+  if (!d || config.state.ui.hiddenIds.includes(d.personId)) return null
   return {
-    'is-nodata': side.half.status === 'nodata',
-    'is-preview': !!props.preview && props.previewPid === side.pid,
-    'is-shake': shakePid.value === side.pid,
-    // 缺口：此人前一周的排班在本周因课程冲突断档，红框提示手动调整
-    'is-gap': info.value.gapFrom === side.pid,
+    color: config.personById[d.personId]?.color,
+    name: config.personName(d.personId),
   }
-}
+})
 </script>
 
 <template>
-  <div
-    class="dcell"
-    :class="{ 'is-conflict': info.conflict }"
-    :style="{ '--halves': halfCount }"
-  >
+  <!-- 只看排班：单人单格，只显示谁在这个时候上班 -->
+  <div v-if="dutiesOnly" class="solo" :class="{ 'is-preview': preview, 'is-conflict': info.conflict }">
     <div
-      v-for="side in sides"
-      v-show="side.visible"
-      :key="side.pid"
+      v-if="soloDuty"
+      class="solo-duty"
+      :class="{ 'is-gap': !!info.gapFrom }"
+      :style="{ background: soloDuty.color }"
+      :title="`已排：${soloDuty.name}`"
+    >
+      {{ soloDuty.name }}
+    </div>
+    <div v-else-if="info.gapFrom" class="solo-gap" :title="`此处缺 ${config.personName(info.gapFrom)}，需手动调整`" />
+  </div>
+
+  <!-- 正常视图：每个人员一格，左→右按导入顺序 -->
+  <div v-else class="dcell" :class="{ 'is-conflict': info.conflict }" :style="{ '--halves': visiblePersons.length }">
+    <div
+      v-for="(p, i) in visiblePersons"
+      :key="p.id"
       class="half"
-      :class="halfClass(side)"
-      :style="halfStyle(side)"
-      :title="halfTitle(side)"
-      @pointerdown="onDown(side, $event)"
-      @pointerenter="$emit('enter', side.pid)"
+      :class="halfClass(p, i)"
+      :style="halfStyle(p, i)"
+      :title="halfTitle(i)"
+      @pointerdown="onDown(p.id, $event)"
+      @pointerenter="$emit('enter', p.id)"
     >
       <span
-        v-if="info.duty?.personId === side.pid && side.half.status !== 'course'"
+        v-if="info.duty?.personId === p.id && info.halves[i]?.status !== 'course'"
         class="duty-tag"
-        :title="`已排：${config.personName(side.pid)}${info.duty.note ? ' · ' + info.duty.note : ''}`"
+        :title="`已排：${config.personName(p.id)}`"
       >
-        {{ config.personName(side.pid) }}
+        {{ p.name }}
       </span>
     </div>
   </div>
@@ -104,22 +123,24 @@ function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> 
 <style scoped>
 .dcell {
   display: grid;
-  grid-template-columns: repeat(var(--halves, 2), 1fr);
+  grid-template-columns: repeat(var(--halves, 1), 1fr);
   min-height: 58px;
   background: #fff;
-  border-right: 1px solid var(--el-border-color-extra-light);
   border-bottom: 1px solid var(--el-border-color-extra-light);
-}
-
-.dcell.edge-r {
-  border-right: none;
 }
 
 .dcell.edge-b {
   border-bottom: none;
 }
 
-.dcell.is-conflict {
+/* 天与天之间的分隔略深于行分隔，让「哪天是哪天」一目了然 */
+.dcell.day-sep,
+.solo.day-sep {
+  border-left: 1px solid var(--el-border-color-light);
+}
+
+.dcell.is-conflict,
+.solo.is-conflict {
   box-shadow: inset 0 0 0 2px var(--el-color-danger);
 }
 
@@ -131,7 +152,7 @@ function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> 
   transition: background-color 0.12s;
 }
 
-/* 左右分层的 A/B 分隔线 */
+/* 同一天内左右人员的分隔：一条白线 */
 .half + .half {
   border-left: 1px solid #fff;
 }
@@ -146,7 +167,9 @@ function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> 
 }
 
 /* 缺口：应延续的排班因课程冲突空缺，红框提示手动调整 */
-.half.is-gap {
+.half.is-gap,
+.solo-duty.is-gap,
+.solo-gap {
   box-shadow: inset 0 0 0 2px var(--el-color-danger);
   background-color: rgba(245, 108, 108, 0.08);
 }
@@ -171,5 +194,28 @@ function halfClass(side: (typeof sides.value)[number]): Record<string, boolean> 
   font-weight: 700;
   overflow: hidden;
   white-space: nowrap;
+}
+
+/* 只看排班的单列格 */
+.solo {
+  min-height: 58px;
+  background: #fff;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+}
+
+.solo.is-preview {
+  box-shadow: inset 0 0 0 2px var(--el-color-primary);
+}
+
+.solo-duty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
 }
 </style>

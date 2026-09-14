@@ -35,20 +35,23 @@ function pickMonth(month: string | number | boolean | undefined): void {
 
 /** 本周每人已排节数 */
 const weeklyCounts = computed(() => {
-  const c: Record<PersonId, number> = { A: 0, B: 0 }
+  const c: Record<string, number> = {}
+  for (const p of config.state.persons) c[p.id] = 0
   for (const [key, entry] of Object.entries(duty.state.map)) {
-    if (Number(key.split('|')[0]) === week.value) c[entry.personId]++
+    if (Number(key.split('|')[0]) === week.value) c[entry.personId] = (c[entry.personId] ?? 0) + 1
   }
   return c
 })
 
 function isVisible(pid: PersonId): boolean {
-  return pid === 'A' ? config.state.ui.showA : config.state.ui.showB
+  return !config.state.ui.hiddenIds.includes(pid)
 }
 
 function toggleVisible(pid: PersonId): void {
-  if (pid === 'A') config.state.ui.showA = !config.state.ui.showA
-  else config.state.ui.showB = !config.state.ui.showB
+  const hidden = config.state.ui.hiddenIds
+  const i = hidden.indexOf(pid)
+  if (i >= 0) hidden.splice(i, 1)
+  else hidden.push(pid)
 }
 </script>
 

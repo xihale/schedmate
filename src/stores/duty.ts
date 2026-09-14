@@ -3,7 +3,8 @@ import { defineStore } from 'pinia'
 import type { DutyEntry, DutyMap } from '../types'
 import { loadJSON, persistOn } from '../lib/persist'
 
-const KEY = 'schedmate:v1:duty'
+// v2：人员动态化后 personId 含义改变，升 key 使旧缓存不干扰
+const KEY = 'schedmate:v2:duty'
 const MAX_UNDO = 60
 
 export const useDutyStore = defineStore('duty', () => {

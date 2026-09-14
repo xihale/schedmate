@@ -1,9 +1,11 @@
 import { ref } from 'vue'
-import { ElMessage, ElNotification } from 'element-plus'
-import type { ImportReport, PersonId } from '../types'
+import { ElNotification } from 'element-plus'
+import type { ImportReport, Person } from '../types'
 import { useTimetableStore } from '../stores/timetable'
 import { useDutyStore } from '../stores/duty'
 import { useConfigStore } from '../stores/config'
+
+const CHINESE = /[\u4e00-\u9fff]/
 
 function reportText(r: ImportReport): string {
   const parts = [`${r.weeks.length} 周 / ${r.courseCount} 节课`]
@@ -12,33 +14,63 @@ function reportText(r: ImportReport): string {
   return parts.join('，')
 }
 
-/** 导入入口共用：点击上传 / 拖放导入都走这里 */
+/**
+ * 导入入口：拖入的每份课表对应一个人员。
+ * 文件名含中文 → 用它当人名（同名文件重导=更新该人）；
+ * 否则 → 依导入顺序分配代号 A/B/C…（同名文件重导=更新该人）。
+ */
 export function useImport() {
   const config = useConfigStore()
   const timetable = useTimetableStore()
   const duty = useDutyStore()
 
-  const importing = ref<PersonId | null>(null)
+  const importing = ref(false)
 
-  /** @returns 是否成功 */
-  async function importAndReport(personId: PersonId, file: File): Promise<boolean> {
-    importing.value = personId
+  function resolvePerson(file: File): Person {
+    const stem = file.name.replace(/\.xlsx?$/i, '')
+    if (CHINESE.test(stem)) {
+      return config.state.persons.find((p) => p.name === stem) ?? config.addPerson(stem)
+    }
+    // 非中文文件名：按「上一次导入的文件名」匹配更新，否则分配未占用的字母代号
+    const existing = config.state.persons.find((p) => timetable.state.meta[p.id]?.fileName === file.name)
+    if (existing) return existing
+    const used = new Set(config.state.persons.map((p) => p.name))
+    const code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find((ch) => !used.has(ch)) ?? `P${config.state.persons.length + 1}`
+    return config.addPerson(code)
+  }
+
+  /** @returns 是否全部成功 */
+  async function importFiles(files: File[]): Promise<boolean> {
+    importing.value = true
+    const lines: string[] = []
     try {
-      const report = await timetable.importFor(personId, file)
+      for (const file of files) {
+        const person = resolvePerson(file)
+        const report = await timetable.importFor(person.id, file)
+        const safeName = file.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        lines.push(`${person.name}（${safeName}）：${reportText(report)}`)
+      }
       duty.resetHistory() // 事实已变，旧 undo 快照无意义
-      ElNotification.success({
-        title: `${config.personName(personId)} 课表已导入`,
-        message: `${file.name}：${reportText(report)}`,
-        duration: 6000,
-      })
+      if (lines.length) {
+        ElNotification.success({
+          title: `已导入 ${lines.length} 份课表`,
+          message: lines.join('<br>'),
+          dangerouslyUseHTMLString: true,
+          duration: 6000,
+        })
+      }
       return true
     } catch (e) {
-      ElMessage.error(e instanceof Error ? e.message : '解析失败，请确认文件格式')
+      ElNotification.error({
+        title: '导入失败',
+        message: e instanceof Error ? e.message : '解析失败，请确认文件格式',
+        duration: 6000,
+      })
       return false
     } finally {
-      importing.value = null
+      importing.value = false
     }
   }
 
-  return { importing, importAndReport }
+  return { importing, importFiles }
 }

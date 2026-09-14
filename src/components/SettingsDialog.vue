@@ -36,7 +36,7 @@ async function clearEverything(): Promise<void> {
     <h4 class="section-title">人员</h4>
     <div class="persons">
       <div v-for="p in config.state.persons" :key="p.id" class="person-row">
-        <span class="pid">{{ p.id }}</span>
+        <span class="dot" :style="{ background: p.color }" />
         <el-input v-model="p.name" maxlength="10" style="width: 140px" />
         <el-color-picker v-model="p.color" />
       </div>
@@ -82,9 +82,10 @@ async function clearEverything(): Promise<void> {
   gap: 10px;
 }
 
-.pid {
-  font-weight: 700;
-  color: var(--el-text-color-secondary);
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
 }
 
 .row {

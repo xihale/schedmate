@@ -1,10 +1,14 @@
-export type PersonId = 'A' | 'B'
+/** 人数由导入的课表份数决定，不再固定 A/B */
+export type PersonId = string
 
 export interface Person {
   id: PersonId
   name: string
   color: string
 }
+
+/** 新增人员的轮换配色 */
+export const PERSON_PALETTE = ['#4C84F0', '#41A86E', '#E6A23C', '#9C6BE8', '#37B3CE', '#E36A6A'] as const
 
 /** 事实：解析自 xlsx，导入后只读 */
 export interface Course {

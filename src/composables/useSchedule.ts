@@ -12,8 +12,8 @@ export type Half =
   | { status: 'nodata' } // 该周无此人课表（如 B 的 1-2 周 / 未导入），视作可排
 
 export interface CellInfo {
-  a: Half
-  b: Half
+  /** 每个人员一格，顺序同 config.persons */
+  halves: Half[]
   duty?: DutyEntry
   /** 排给了当节有课的人 → 冲突（重导课表后可能出现），标红保留 */
   conflict: boolean
@@ -41,10 +41,10 @@ export function useSchedule() {
 
   /** 每人已导入的周集合，用于区分 free / nodata */
   const importedWeeks = computed(() => {
-    const r: Record<PersonId, Set<number>> = { A: new Set(), B: new Set() }
-    for (const pid of ['A', 'B'] as const) {
-      const meta = timetable.state.meta[pid]
-      if (meta) for (const w of meta.weeks) r[pid].add(w)
+    const r: Record<string, Set<number>> = {}
+    for (const [pid, meta] of Object.entries(timetable.state.meta)) {
+      if (!meta) continue
+      r[pid] = new Set(meta.weeks)
     }
     return r
   })
@@ -52,7 +52,7 @@ export function useSchedule() {
   function half(personId: PersonId, week: number, day: number, period: number): Half {
     const c = busyIndex.value.get(`${personId}|${week}|${day}|${period}`)
     if (c) return { status: 'course', course: c }
-    if (!importedWeeks.value[personId].has(week)) return { status: 'nodata' }
+    if (!importedWeeks.value[personId]?.has(week)) return { status: 'nodata' }
     return { status: 'free' }
   }
 
@@ -61,8 +61,7 @@ export function useSchedule() {
     const conflict =
       !!entry && busyIndex.value.has(`${entry.personId}|${week}|${day}|${period}`)
     return {
-      a: half('A', week, day, period),
-      b: half('B', week, day, period),
+      halves: config.state.persons.map((p) => half(p.id, week, day, period)),
       duty: entry,
       conflict,
       gapFrom: gapMap.value.get(dutyKey(week, day, period)),

@@ -1,20 +1,21 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Person, PersonId } from '../types'
+import { PERSON_PALETTE } from '../types'
 import { loadJSON, persistOn } from '../lib/persist'
 import { parseISODate } from '../lib/dates'
 
-// v2：人员默认名改为 A/B、去掉 tab 与高亮列字段；升 key 使旧配置不干扰
-const KEY = 'schedmate:v2:config'
+// v3：人数动态化（导入几份课表就有几个人），ui.showA/showB 改为 hiddenIds；升 key 使旧配置不干扰
+const KEY = 'schedmate:v3:config'
 
 interface ConfigState {
   persons: Person[]
+  nextPersonIndex: number // 人员 id 生成计数，只增不减
   semesterStart: string // 第1周周一，ISO 日期
   ui: {
     week: number
-    showA: boolean
-    showB: boolean
-    hideCourses: boolean // 只看排班：课程块退为浅灰，排班块变实色
+    hiddenIds: PersonId[] // 隐藏列的人员
+    hideCourses: boolean // 只看排班：隐去课程，每人一格只显示谁当班
   }
 }
 
@@ -29,12 +30,10 @@ const DEFAULT_START = '2026-08-31'
 export const useConfigStore = defineStore('config', () => {
   const state = ref<ConfigState>(
     loadJSON(KEY, {
-      persons: [
-        { id: 'A', name: 'A', color: '#4C84F0' },
-        { id: 'B', name: 'B', color: '#41A86E' },
-      ],
+      persons: [],
+      nextPersonIndex: 1,
       semesterStart: DEFAULT_START,
-      ui: { week: currentWeek(DEFAULT_START), showA: true, showB: true, hideCourses: false },
+      ui: { week: currentWeek(DEFAULT_START), hiddenIds: [], hideCourses: false },
     }),
   )
   persistOn(() => state.value, KEY)
@@ -47,5 +46,23 @@ export const useConfigStore = defineStore('config', () => {
     return personById.value[id]?.name ?? id
   }
 
-  return { state, personById, personName }
+  /** 新增一个人员：id 自增，配色按顺序轮换 */
+  function addPerson(name: string): Person {
+    const person: Person = {
+      id: `p${state.value.nextPersonIndex++}`,
+      name,
+      color: PERSON_PALETTE[(state.value.persons.length + 1) % PERSON_PALETTE.length],
+    }
+    // 首个人固定用蓝色，与既有习惯一致
+    if (state.value.persons.length === 0) person.color = PERSON_PALETTE[0]
+    state.value.persons.push(person)
+    return person
+  }
+
+  function removePerson(id: PersonId): void {
+    state.value.persons = state.value.persons.filter((p) => p.id !== id)
+    state.value.ui.hiddenIds = state.value.ui.hiddenIds.filter((x) => x !== id)
+  }
+
+  return { state, personById, personName, addPerson, removePerson }
 })

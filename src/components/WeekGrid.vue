@@ -70,18 +70,13 @@ function dayDate(day: number): string {
   return fmtMD(courseDate(config.state.semesterStart, week.value, day))
 }
 
-const showA = computed(() => config.state.ui.showA)
-const showB = computed(() => config.state.ui.showB)
-
-const visibleHalfCount = computed(() => Math.max(1, (showA.value ? 1 : 0) + (showB.value ? 1 : 0)))
-
 const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 </script>
 
 <template>
-  <div class="week-grid" :class="{ dragging: !!drag }">
+  <div class="week-grid" :class="{ dragging: !!drag, solo: config.state.ui.hideCourses }">
     <div class="corner" />
-    <div v-for="(dname, i) in DAY_NAMES" :key="dname" class="day-head">
+    <div v-for="(dname, i) in DAY_NAMES" :key="dname" class="day-head" :class="{ 'day-sep': i > 0 }">
       <span class="dname">{{ dname }}</span>
       <span class="ddate">{{ dayDate(i + 1) }}</span>
     </div>
@@ -100,8 +95,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
         :period="p"
         :preview="isPreview(d, p)"
         :preview-pid="drag?.pid ?? null"
-        :half-count="visibleHalfCount"
-        :class="{ 'edge-r': d === 7, 'edge-b': p === PERIOD_COUNT }"
+        :class="{ 'edge-b': p === PERIOD_COUNT, 'day-sep': d > 1 }"
         @press="(pid) => onHalfPress(pid, d, p)"
         @enter="(pid) => onHalfEnter(pid, d, p)"
       />
@@ -113,7 +107,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 /* 连续无框课表：外层一个圆角面板，内部仅发丝线分隔，不断开 */
 .week-grid {
   display: grid;
-  grid-template-columns: 52px repeat(7, minmax(104px, 1fr));
+  grid-template-columns: 52px repeat(7, minmax(96px, 1fr));
   background: #fff;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
@@ -140,6 +134,10 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
+.day-head.day-sep {
+  border-left: 1px solid var(--el-border-color-light);
+}
+
 .dname {
   font-weight: 600;
   font-size: 13px;
@@ -158,6 +156,6 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   font-size: 11px;
   color: var(--el-text-color-secondary);
   line-height: 1.3;
-  border-right: 1px solid var(--el-border-color-extra-light);
+  border-right: 1px solid var(--el-border-color-light);
 }
 </style>
