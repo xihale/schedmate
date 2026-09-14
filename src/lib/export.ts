@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx-js-style'
 import { DAY_NAMES, PERIOD_COUNT } from '../types'
 import { useSchedule } from '../composables/useSchedule'
 import { WEEK_COUNT } from '../types'
@@ -25,7 +24,9 @@ function currentMonthGroup(): { month: number; weeks: number[] } {
  * 唯一的导出：当前月份的排班表。
  * 每周一 sheet 复刻 节次×星期 网格，一格一个人名（实色底白字），课程不出现。
  */
-export function exportMonthDuties(): void {
+export async function exportMonthDuties(): Promise<void> {
+  // xlsx-js-style 体积很大，点击导出时才动态加载
+  const XLSX = await import('xlsx-js-style')
   const { cell, config } = useSchedule()
   const wb = XLSX.utils.book_new()
   const group = currentMonthGroup()

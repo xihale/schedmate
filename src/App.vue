@@ -4,6 +4,7 @@ import { useImport } from './composables/useImport'
 import TopBar from './components/TopBar.vue'
 import WeekView from './views/WeekView.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 const timetable = useTimetableStore()
 const { importFiles } = useImport()
@@ -42,24 +43,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <el-container direction="vertical">
-    <header class="app-header">
-      <div class="brand">SchedMate</div>
-      <TopBar v-if="timetable.hasAnyData" />
-    </header>
-    <el-main v-if="timetable.hasAnyData" class="app-main">
-      <WeekView />
-    </el-main>
-    <div v-else class="empty-stage">
-      <div class="empty-title">把课表 xlsx 拖进来</div>
-    </div>
-
-    <div v-show="overlayVisible" class="drop-overlay">
-      <div class="drop-frame">
-        <div class="drop-text">松开导入课表 xlsx</div>
+  <el-config-provider :locale="zhCn">
+    <el-container direction="vertical">
+      <header class="app-header">
+        <div class="brand">SchedMate</div>
+        <TopBar v-if="timetable.hasAnyData" />
+      </header>
+      <el-main v-if="timetable.hasAnyData" class="app-main">
+        <WeekView />
+      </el-main>
+      <div v-else class="empty-stage">
+        <div class="empty-title">把课表 xlsx 拖进来</div>
       </div>
-    </div>
-  </el-container>
+
+      <div v-show="overlayVisible" class="drop-overlay">
+        <div class="drop-frame">
+          <div class="drop-text">松开导入课表 xlsx</div>
+        </div>
+      </div>
+    </el-container>
+  </el-config-provider>
 </template>
 
 <style scoped>

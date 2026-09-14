@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx-js-style'
 import type { Course, ImportReport, PersonId } from '../types'
 import { PERIOD_COUNT, WEEK_COUNT } from '../types'
 
@@ -14,7 +13,9 @@ type RowRange = { s: { r: number; c: number }; e: { r: number; c: number } }
  * - 课程格内容 `课程名\n地点`；连堂 = 纵向合并单元格
  * - 只取前 8 节；跨过第 8 节的连堂截断到第 8 节
  */
-export function parseTimetable(personId: PersonId, buf: ArrayBuffer, fileName: string): { courses: Course[]; report: ImportReport } {
+export async function parseTimetable(personId: PersonId, buf: ArrayBuffer, fileName: string): Promise<{ courses: Course[]; report: ImportReport }> {
+  // xlsx-js-style 体积很大，仅在真正用到时动态加载（首屏不打包进主 chunk）
+  const XLSX = await import('xlsx-js-style')
   const wb = XLSX.read(buf, { type: 'array' })
   const courses: Course[] = []
   const weeks: number[] = []

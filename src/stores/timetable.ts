@@ -20,7 +20,7 @@ export const useTimetableStore = defineStore('timetable', () => {
 
   async function importFor(personId: PersonId, file: File): Promise<ImportReport> {
     const buf = await file.arrayBuffer()
-    const { courses, report } = parseTimetable(personId, buf, file.name)
+    const { courses, report } = await parseTimetable(personId, buf, file.name)
     // 整体替换该人课程；已有排班不删，冲突由派生层标红
     state.value.courses = state.value.courses.filter((c) => c.personId !== personId).concat(courses)
     state.value.meta[personId] = {
