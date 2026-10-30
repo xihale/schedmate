@@ -37,7 +37,7 @@ export interface MonthGroup {
 
 /**
  * 把周按「月」分组（该周 7 天中所属天数最多的月份），
- * 对应「课程每月都变、按月排班」的使用方式。
+ * 作为聚焦预设（也可选"本周起 N 周"），对应「课程每月都变、按月排班」的使用方式。
  */
 export function monthGroups(semesterStartISO: string, weekCount: number): MonthGroup[] {
   const groups: MonthGroup[] = []
@@ -60,4 +60,29 @@ export function monthGroups(semesterStartISO: string, weekCount: number): MonthG
     else groups.push({ month: best, weeks: [week] })
   }
   return groups
+}
+
+/** 今天所在的教学周（clamp 到 1..weekCount） */
+export function todayWeek(semesterStartISO: string, weekCount: number): number {
+  const diff = Date.now() - parseISODate(semesterStartISO).getTime()
+  return Math.min(weekCount, Math.max(1, Math.floor(diff / (7 * 86400000)) + 1))
+}
+
+/** 聚焦区间归一化：clamp 到 1..weekCount，且保证 start ≤ end */
+export function clampFocus(
+  f: { start: number; end: number },
+  weekCount: number,
+): { start: number; end: number } {
+  const start = Math.min(Math.max(1, Math.round(f.start)), weekCount)
+  const end = Math.min(Math.max(start, Math.round(f.end)), weekCount)
+  return { start, end }
+}
+
+/** 聚焦区间的文案：恰好是某个月分组 → "11月"，否则 → "第10-13周" */
+export function focusLabel(semesterStartISO: string, start: number, end: number, weekCount: number): string {
+  const g = monthGroups(semesterStartISO, weekCount).find(
+    (x) => x.weeks[0] === start && x.weeks[x.weeks.length - 1] === end,
+  )
+  if (g && g.weeks.length === end - start + 1) return `${g.month}月`
+  return start === end ? `第${start}周` : `第${start}-${end}周`
 }

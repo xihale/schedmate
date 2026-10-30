@@ -6,12 +6,12 @@ import { useDutyStore } from '../stores/duty'
 import { useSchedule } from '../composables/useSchedule'
 import { WEEK_COUNT } from '../types'
 import type { PersonId } from '../types'
-import { monthGroups, weekRangeLabel } from '../lib/dates'
+import { courseDate, fmtMD, monthGroups, todayWeek, weekRangeLabel } from '../lib/dates'
 import WeekGrid from '../components/WeekGrid.vue'
 
 const config = useConfigStore()
 const duty = useDutyStore()
-const { weeksWithGaps } = useSchedule()
+const { focusWeeks, weeksWithGaps } = useSchedule()
 
 const week = computed({
   get: () => config.state.ui.week,
@@ -23,14 +23,48 @@ const dutiesOnly = computed({
   set: (v: boolean) => (config.state.ui.hideCourses = v),
 })
 
-/** 月分组与当前月；切月默认落到该月第一周 */
-const groups = computed(() => monthGroups(config.state.semesterStart, WEEK_COUNT))
-const currentGroup = computed(() => groups.value.find((g) => g.weeks.includes(week.value)) ?? groups.value[0])
-const monthWeeks = computed(() => currentGroup.value?.weeks ?? [])
+/** 聚焦预设：各月分组 + 从本周起的 2/3/4 周；选中的区间决定同步/缺口/导出范围 */
+interface FocusPreset {
+  id: string
+  label: string
+  title: string
+  weeks: number[]
+}
 
-function pickMonth(month: string | number | boolean | undefined): void {
-  const g = groups.value.find((x) => x.month === Number(month))
-  if (g && !g.weeks.includes(week.value)) week.value = g.weeks[0]
+const presets = computed<FocusPreset[]>(() => {
+  const startISO = config.state.semesterStart
+  const ps: FocusPreset[] = monthGroups(startISO, WEEK_COUNT).map((g) => ({
+    id: `m${g.month}`,
+    label: `${g.month}月`,
+    title: `${fmtMD(courseDate(startISO, g.weeks[0], 1))} ~ ${fmtMD(courseDate(startISO, g.weeks[g.weeks.length - 1], 7))}`,
+    weeks: [...g.weeks],
+  }))
+  const tw = todayWeek(startISO, WEEK_COUNT)
+  for (const n of [2, 3, 4]) {
+    const end = Math.min(WEEK_COUNT, tw + n - 1)
+    if (tw > end) break
+    const weeks = Array.from({ length: end - tw + 1 }, (_, i) => tw + i)
+    ps.push({
+      id: `r${n}`,
+      label: `本周起${weeks.length}周`,
+      title: `${fmtMD(courseDate(startISO, weeks[0], 1))} ~ ${fmtMD(courseDate(startISO, weeks[weeks.length - 1], 7))}`,
+      weeks,
+    })
+  }
+  return ps
+})
+
+/** 当前聚焦命中的预设；自定义/失配区间则无高亮 */
+const activePreset = computed(() => {
+  const fw = focusWeeks.value
+  return presets.value.find((p) => p.weeks.length === fw.length && p.weeks.every((w, i) => w === fw[i]))?.id
+})
+
+function pickPreset(id: string | number | boolean | undefined): void {
+  const p = presets.value.find((x) => x.id === String(id))
+  if (!p) return
+  config.state.ui.focus = { start: p.weeks[0], end: p.weeks[p.weeks.length - 1] }
+  if (!p.weeks.includes(week.value)) week.value = p.weeks[0]
 }
 
 /** 本周每人已排节数 */
@@ -58,13 +92,13 @@ function toggleVisible(pid: PersonId): void {
 <template>
   <div class="week-view">
     <div class="toolbar">
-      <el-radio-group :model-value="currentGroup?.month" @update:model-value="pickMonth">
-        <el-radio-button v-for="g in groups" :key="g.month" :value="g.month">{{ g.month }}月</el-radio-button>
+      <el-radio-group :model-value="activePreset" @update:model-value="pickPreset">
+        <el-radio-button v-for="p in presets" :key="p.id" :value="p.id" :title="`${p.label}：${p.title}`">{{ p.label }}</el-radio-button>
       </el-radio-group>
 
       <el-radio-group v-model="week">
         <el-radio-button
-          v-for="w in monthWeeks"
+          v-for="w in focusWeeks"
           :key="w"
           :value="w"
           :title="weeksWithGaps.has(w) ? `第${w}周有与课程冲突的排班，需手动调整` : weekRangeLabel(config.state.semesterStart, w)"
@@ -146,7 +180,7 @@ function toggleVisible(pid: PersonId): void {
   gap: 6px;
   border: 1px solid var(--el-border-color-lighter);
   background: #fff;
-  border-radius: 14px;
+  border-radius: 999px;
   padding: 4px 10px;
   cursor: pointer;
   font-size: 12px;
@@ -175,7 +209,7 @@ function toggleVisible(pid: PersonId): void {
 
 .person-toggle .count {
   font-weight: 700;
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-regular);
 }
 
 /* 周按钮上的缺口提示：该周有排班与课程冲突，待手动调整 */

@@ -14,8 +14,7 @@ import {
   ElDivider,
   ElInput,
   ElMain,
-  ElRadioGroup,
-  ElRadioButton,
+  ElRadio,
   ElTooltip,
 } from 'element-plus'
 import 'element-plus/es/components/button/style/css'
@@ -46,8 +45,7 @@ for (const comp of [
   ElDivider,
   ElInput,
   ElMain,
-  ElRadioGroup,
-  ElRadioButton,
+  ElRadio, // 2.10 起 ElRadioGroup/ElRadioButton 是空 install，只有 ElRadio 会注册整个 radio 家族
   ElTooltip,
 ]) {
   app.use(comp)

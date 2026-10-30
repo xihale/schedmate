@@ -38,7 +38,7 @@ function commitDrag(): void {
   if (!d) return
   const key = dutyKey(week.value, d.day, d.start)
 
-  // 点击：切换该半格的排班（含同月向后同步/取消）
+  // 点击：切换该半格的排班（含聚焦区间内向后同步/取消）
   if (d.start === d.end) {
     const existing = schedule.duty.dutyMap[key]
     if (existing?.personId === d.pid) {
@@ -156,7 +156,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 
 .ddate {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .period-label {
@@ -164,7 +164,7 @@ const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-regular);
   border-right: 1px solid var(--el-border-color-dark);
 }
 

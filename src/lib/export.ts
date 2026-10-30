@@ -1,7 +1,7 @@
-import { DAY_NAMES, PERIOD_COUNT } from '../types'
+import { DAY_NAMES, PERIOD_COUNT, WEEK_COUNT } from '../types'
 import { useSchedule } from '../composables/useSchedule'
-import { WEEK_COUNT } from '../types'
-import { monthGroups } from './dates'
+import { focusLabel } from './dates'
+import { dutyFill } from './palette'
 
 const thin = { style: 'thin', color: { rgb: 'D0D7DE' } }
 const allBorders = { top: thin, bottom: thin, left: thin, right: thin }
@@ -9,29 +9,19 @@ const centerWrap = { vertical: 'center', horizontal: 'center', wrapText: true }
 
 type AnyCell = { t: string; v: unknown; s?: unknown }
 
-/** 当前查看的月份分组：排班按月进行，导出也只含当月这几周 */
-function currentMonthGroup(): { month: number; weeks: number[] } {
-  const { config } = useSchedule()
-  return (
-    monthGroups(config.state.semesterStart, WEEK_COUNT).find((g) => g.weeks.includes(config.state.ui.week)) ?? {
-      month: 1,
-      weeks: [],
-    }
-  )
-}
-
 /**
- * 唯一的导出：当前月份的排班表。
+ * 唯一的导出：当前聚焦区间的排班表。
  * 每周一 sheet 复刻 节次×星期 网格，一格一个人名（实色底白字），课程不出现。
  */
-export async function exportMonthDuties(): Promise<void> {
+export async function exportFocusDuties(): Promise<void> {
   // xlsx-js-style 体积很大，点击导出时才动态加载
   const XLSX = await import('xlsx-js-style')
-  const { cell, config } = useSchedule()
+  const { cell, config, focusWeeks } = useSchedule()
   const wb = XLSX.utils.book_new()
-  const group = currentMonthGroup()
+  const weeks = focusWeeks.value
+  const label = focusLabel(config.state.semesterStart, weeks[0], weeks[weeks.length - 1], WEEK_COUNT)
 
-  for (const week of group.weeks) {
+  for (const week of weeks) {
     const aoa: (string | number)[][] = []
     aoa.push(['节次\\星期', ...DAY_NAMES])
     for (let p = 1; p <= PERIOD_COUNT; p++) aoa.push([p, '', '', '', '', '', '', ''])
@@ -47,7 +37,7 @@ export async function exportMonthDuties(): Promise<void> {
         let fontColor = '333333'
 
         if (info.duty) {
-          fill = config.personById[info.duty.personId]?.color.replace('#', '').toUpperCase() ?? '889098'
+          fill = dutyFill(config.personById[info.duty.personId]?.color ?? '#889098').replace('#', '').toUpperCase()
           fontColor = 'FFFFFF'
         }
 
@@ -87,5 +77,5 @@ export async function exportMonthDuties(): Promise<void> {
     XLSX.utils.book_append_sheet(wb, ws, `第${week}周`)
   }
 
-  XLSX.writeFile(wb, `排班（${group.month}月）.xlsx`)
+  XLSX.writeFile(wb, `排班（${label}）.xlsx`)
 }
