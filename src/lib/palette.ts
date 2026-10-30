@@ -21,3 +21,8 @@ export function darken(hex: string, ratio: number): string {
   const to2 = (v: number) => v.toString(16).padStart(2, '0').toUpperCase()
   return to2(ch(0)) + to2(ch(2)) + to2(ch(4))
 }
+
+/** 排班实色底：压深到白字可读（WCAG ≥4.5:1），六种人员色在 0.65 倍下全部达标（最紧的橙 ≈4.8） */
+export function dutyFill(hex: string): string {
+  return darken(hex, 0.65)
+}

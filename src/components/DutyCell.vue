@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
-import { rgba } from '../lib/palette'
+import { dutyFill, rgba } from '../lib/palette'
 import type { Person, PersonId } from '../types'
 
 const props = defineProps<{
@@ -44,8 +44,8 @@ function halfStyle(p: Person, i: number): Record<string, string> {
     style.background = rgba(p.color, 0.14)
   }
   if (info.value.duty?.personId === p.id && half?.status !== 'course') {
-    // 排班：人员实色底 + 白字，一眼看出谁值班
-    style.background = p.color
+    // 排班：人员色压深 + 白字，一眼看出谁值班
+    style.background = dutyFill(p.color)
     style.color = '#fff'
   }
   return style
@@ -89,7 +89,7 @@ const soloDuty = computed(() => {
       v-if="soloDuty"
       class="solo-duty"
       :class="{ 'is-gap': !!info.gapFrom }"
-      :style="{ background: soloDuty.color }"
+      :style="{ background: dutyFill(soloDuty.color) }"
       :title="`已排：${soloDuty.name}`"
     >
       {{ soloDuty.name }}

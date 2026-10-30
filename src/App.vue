@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
   height: calc(100vh - 52px - 16px);
   margin: 8px;
   border: 2px dashed var(--el-border-color-lighter);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fff;
   display: flex;
   align-items: center;
@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
 
 .empty-title {
   font-size: 18px;
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .drop-overlay {
@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
 
 .drop-frame {
   border: 3px dashed var(--el-color-primary);
-  border-radius: 16px;
+  border-radius: 12px;
   position: absolute;
   inset: 14px;
   display: flex;
