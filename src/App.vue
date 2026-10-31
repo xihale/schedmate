@@ -7,17 +7,18 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 const timetable = useTimetableStore()
-const { importFiles } = useImport()
+const { importing, importFiles } = useImport()
 
-// ---- 全窗口拖拽导入：拖入的每份课表就是一个人 ----
 const overlayVisible = ref(false)
+const pickHint = ref('')
+const fileRef = ref<HTMLInputElement | null>(null)
 let hideTimer: number | undefined
 
 const isXlsx = (f: globalThis.File) => /\.xlsx?$/i.test(f.name)
 
 function onDragOver(e: DragEvent): void {
   if (![...(e.dataTransfer?.types ?? [])].includes('Files')) return
-  e.preventDefault() // 允许在窗口任意位置 drop
+  e.preventDefault()
   overlayVisible.value = true
   window.clearTimeout(hideTimer)
   hideTimer = window.setTimeout(() => (overlayVisible.value = false), 250)
@@ -27,9 +28,31 @@ function onDrop(e: DragEvent): void {
   window.clearTimeout(hideTimer)
   overlayVisible.value = false
   const files = [...(e.dataTransfer?.files ?? [])].filter(isXlsx)
-  if (files.length === 0) return
+  if (files.length === 0) {
+    pickHint.value = '只接受 .xlsx 课表'
+    return
+  }
   e.preventDefault()
+  pickHint.value = ''
   importFiles(files)
+}
+
+function pick(): void {
+  fileRef.value?.click()
+}
+
+async function onPick(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement
+  const all = [...(input.files ?? [])]
+  const files = all.filter(isXlsx)
+  input.value = ''
+  if (all.length > 0 && files.length === 0) {
+    pickHint.value = '只接受 .xlsx 课表'
+    return
+  }
+  if (files.length === 0) return
+  pickHint.value = ''
+  await importFiles(files)
 }
 
 onMounted(() => {
@@ -39,110 +62,133 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('dragover', onDragOver)
   window.removeEventListener('drop', onDrop)
+  window.clearTimeout(hideTimer)
 })
 </script>
 
 <template>
   <el-config-provider :locale="zhCn">
-    <el-container direction="vertical">
-      <header class="app-header">
-        <div class="brand">SchedMate</div>
+    <div class="shell">
+      <header class="head">
+        <h1 class="brand">SchedMate</h1>
         <TopBar v-if="timetable.hasAnyData" />
       </header>
-      <el-main v-if="timetable.hasAnyData" class="app-main">
-        <WeekView />
-      </el-main>
-      <div v-else class="empty-stage">
-        <div class="empty-title">把课表 xlsx 拖进来</div>
-      </div>
 
-      <div v-show="overlayVisible" class="drop-overlay">
-        <div class="drop-frame">
-          <div class="drop-text">松开导入课表 xlsx</div>
-        </div>
-      </div>
-    </el-container>
+      <main v-if="timetable.hasAnyData" class="main">
+        <WeekView />
+      </main>
+
+      <main v-else class="intro">
+        <h2 class="intro-title">导入课表</h2>
+        <p class="intro-lead">每人一份 xlsx，可多选，也可直接拖进窗口。</p>
+        <button class="intro-btn" :disabled="importing" @click="pick">{{ importing ? '导入中…' : '选择文件' }}</button>
+        <p class="intro-hint" :class="{ bad: pickHint }" aria-live="polite">{{ pickHint }}</p>
+        <input ref="fileRef" class="file" type="file" accept=".xls,.xlsx" multiple @change="onPick" />
+      </main>
+
+      <div v-show="overlayVisible" class="drop">松开导入</div>
+    </div>
   </el-config-provider>
 </template>
 
 <style scoped>
-.app-header {
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.head {
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: #fff;
-  border-bottom: 1px solid var(--el-border-color-extra-light);
-  padding: 0 20px;
-  height: 52px;
+  gap: 32px;
+  height: 56px;
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--line);
+  flex: none;
 }
 
 .brand {
-  font-size: 16px;
+  margin: 0;
+  font-size: 15px;
   font-weight: 700;
-  white-space: nowrap;
+  letter-spacing: -0.01em;
+  flex: none;
 }
 
-.app-main {
-  padding: 16px 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
+.main {
+  flex: 1;
+  min-height: 0;
 }
 
-/* 空态：占满整个窗口的拖入提示 */
-.empty-stage {
-  height: calc(100vh - 52px - 16px);
-  margin: 8px;
-  border: 2px dashed var(--el-border-color-lighter);
-  border-radius: 12px;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty-title {
-  font-size: 18px;
-  color: var(--el-text-color-regular);
-}
-
-.drop-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-  background: rgba(64, 158, 255, 0.08);
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.drop-frame {
-  border: 3px dashed var(--el-color-primary);
-  border-radius: 12px;
-  position: absolute;
-  inset: 14px;
+.intro {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.6);
+  padding: 0 calc(var(--pad) * 4);
+  padding-bottom: 12vh;
 }
 
-.drop-text {
-  font-size: 22px;
+.intro-title {
+  margin: 0;
+  font-size: 40px;
   font-weight: 700;
-  color: var(--el-color-primary);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
-@media (max-width: 768px) {
-  .app-header {
-    padding: 0 12px;
-  }
+.intro-lead {
+  margin: 16px 0 40px;
+  color: var(--muted);
+  font-size: 15px;
+}
 
-  .app-main {
-    padding: 8px 10px;
-  }
+.intro-btn {
+  align-self: flex-start;
+  height: 44px;
+  padding: 0 28px;
+  border: 0;
+  background: var(--ink);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.intro-btn:hover {
+  background: #333;
+}
+
+.intro-btn:disabled {
+  background: var(--muted);
+  cursor: progress;
+}
+
+.intro-hint {
+  min-height: 20px;
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
+.intro-hint.bad {
+  color: var(--red);
+}
+
+.file {
+  display: none;
+}
+
+.drop {
+  position: fixed;
+  inset: 12px;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 24px;
+  font-weight: 700;
+  pointer-events: none;
 }
 </style>

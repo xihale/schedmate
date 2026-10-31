@@ -124,21 +124,42 @@ export function useSchedule() {
     }
   }
 
-  /** 排班并在聚焦区间内向后同步 */
-  function assignWithSync(week: number, day: number, period: number, pid: PersonId): void {
+  /** 排班并在聚焦区间内向后同步。返回实际写入的格。 */
+  function assignWithSync(week: number, day: number, period: number, pid: PersonId): Record<string, DutyEntry> {
     const entries: Record<string, DutyEntry> = {}
     collectSync(entries, week, day, period, pid)
     if (Object.keys(entries).length) duty.batchSet(entries)
+    return entries
   }
 
-  /** 取消排班，聚焦区间内后续周的同人同位排班一并取消 */
-  function removeWithSync(week: number, day: number, period: number, pid: PersonId): void {
+  /** 取消排班，聚焦区间内后续周的同人同位排班一并取消。返回实际删掉的格。 */
+  function removeWithSync(week: number, day: number, period: number, pid: PersonId): Record<string, null> {
     const entries: Record<string, null> = {}
     for (const w of [week, ...focusWeeks.value.filter((x) => x > week)]) {
       const key = dutyKey(w, day, period)
       if (duty.state.map[key]?.personId === pid) entries[key] = null
     }
     if (Object.keys(entries).length) duty.batchSet(entries)
+    return entries
+  }
+
+  /** 换人：本格及后续周里 from 的同位排班换成 to（to 有课的周空出来），只记一次撤销。返回写入 to 的格。 */
+  function replaceWithSync(week: number, day: number, period: number, from: PersonId, to: PersonId): string[] {
+    const entries: Record<string, DutyEntry | null> = {}
+    const written: string[] = []
+    for (const w of [week, ...focusWeeks.value.filter((x) => x > week)]) {
+      const key = dutyKey(w, day, period)
+      const cur = duty.state.map[key]
+      if (cur && cur.personId !== from) continue
+      if (busyIndex.value.has(`${to}|${w}|${day}|${period}`)) {
+        if (cur) entries[key] = null
+        continue
+      }
+      entries[key] = { personId: to }
+      written.push(key)
+    }
+    if (Object.keys(entries).length) duty.batchSet(entries)
+    return written
   }
 
   return {
@@ -156,5 +177,6 @@ export function useSchedule() {
     collectSync,
     assignWithSync,
     removeWithSync,
+    replaceWithSync,
   }
 }

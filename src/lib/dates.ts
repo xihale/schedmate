@@ -86,3 +86,11 @@ export function focusLabel(semesterStartISO: string, start: number, end: number,
   if (g && g.weeks.length === end - start + 1) return `${g.month}月`
   return start === end ? `第${start}周` : `第${start}-${end}周`
 }
+
+/** 聚焦区间：月份或周次，带起止日期。同步和导出都用这句。 */
+export function focusDetail(semesterStartISO: string, start: number, end: number, weekCount: number): string {
+  const name = focusLabel(semesterStartISO, start, end, weekCount)
+  const a = fmtMD(courseDate(semesterStartISO, start, 1))
+  const b = fmtMD(courseDate(semesterStartISO, end, 7))
+  return `${name} · ${a}–${b}`
+}

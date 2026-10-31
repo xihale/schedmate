@@ -1,184 +1,370 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useConfigStore } from '../stores/config'
 import { useSchedule } from '../composables/useSchedule'
 import { DAY_NAMES, PERIOD_COUNT, dutyKey } from '../types'
 import type { PersonId } from '../types'
 import { courseDate, fmtMD } from '../lib/dates'
+import { flash } from '../lib/status'
+import { washWeeks } from '../lib/wash'
 import DutyCell from './DutyCell.vue'
 
 const config = useConfigStore()
 const schedule = useSchedule()
-const { available } = schedule
 
 const week = computed(() => config.state.ui.week)
+const persons = computed(() => config.state.persons)
 
-/** 拖动状态：同一半格（同人同列）从起始节到当前节；起止相同即为点击 */
+/** 拖动：同一个人同一天，从起始节到当前节；起止相同就是一次点击 */
 const drag = ref<{ pid: PersonId; day: number; start: number; end: number } | null>(null)
+const denial = ref<{ pid: PersonId; day: number; period: number; text: string } | null>(null)
+let denialTimer = 0
 
-function onHalfPress(pid: PersonId, day: number, period: number): void {
+const gridEl = ref<HTMLElement | null>(null)
+const activeId = ref<string | null>(null)
+/** 打开换人菜单的格：`${day}-${period}` */
+const menuAt = ref<string | null>(null)
+
+const periods = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
+
+function personColor(pid: PersonId): string {
+  return config.personById[pid]?.color ?? '#889098'
+}
+
+function blockReason(pid: PersonId, day: number, period: number): string | null {
+  const info = schedule.cell(week.value, day, period)
+  const i = persons.value.findIndex((p) => p.id === pid)
+  const half = info.halves[i]
+  if (half?.status === 'course') return `有课 ${half.course.name}`
+  return null
+}
+
+function deny(pid: PersonId, day: number, period: number, text: string): void {
+  denial.value = { pid, day, period, text }
+  flash(`${DAY_NAMES[day - 1]}第 ${period} 节：${text}`)
+  window.clearTimeout(denialTimer)
+  denialTimer = window.setTimeout(() => {
+    denial.value = null
+  }, 1500)
+}
+
+/** 如实说出写了哪些周：连续的折叠成区间，稀疏的列出来 */
+function weeksLabel(weeks: number[]): string {
+  const ws = [...weeks].sort((a, b) => a - b)
+  const parts: string[] = []
+  let i = 0
+  while (i < ws.length) {
+    let j = i
+    while (j + 1 < ws.length && ws[j + 1] === ws[j] + 1) j++
+    parts.push(i === j ? `${ws[i]}` : `${ws[i]}–${ws[j]}`)
+    i = j + 1
+  }
+  const text = parts.join('、')
+  return text.length > 16 ? `${ws[0]}–${ws[ws.length - 1]} 中的 ${ws.length} 周` : text
+}
+
+/** 键盘进来的人写完不该丢位置：同一条 slot 还在，就把焦点放回去 */
+function restoreFocus(fromKeyboard: boolean): void {
+  if (!fromKeyboard) return
+  nextTick(() => focusSlot(activeId.value))
+}
+
+/** 点或拖：写入、取消，都在这里落到 store */
+function write(pid: PersonId, day: number, period: number, fromKeyboard = false): void {
+  const info = schedule.cell(week.value, day, period)
+  if (info.duty?.personId === pid) {
+    const removed = schedule.removeWithSync(week.value, day, period, pid)
+    const n = Object.keys(removed).length
+    flash(n > 1 ? `已取消 ${n} 周` : '已取消')
+    restoreFocus(fromKeyboard)
+    return
+  }
+  const why = blockReason(pid, day, period)
+  if (why) {
+    deny(pid, day, period, why)
+    return
+  }
+  const written = schedule.assignWithSync(week.value, day, period, pid)
+  const keys = Object.keys(written)
+  if (!keys.length) {
+    flash('没有可写的周')
+    return
+  }
+  const weeks = [...new Set(keys.map((k) => Number(k.split('|')[0])))]
+  washWeeks(weeks, personColor(pid))
+  // 逐周对账：写了哪些、被课挡了哪些，一行说完
+  const writtenSet = new Set(weeks)
+  const blocked = schedule.focusWeeks.value.filter(
+    (w) =>
+      w > week.value &&
+      !writtenSet.has(w) &&
+      !schedule.duty.state.map[dutyKey(w, day, period)] &&
+      schedule.busyIndex.value.has(`${pid}|${w}|${day}|${period}`),
+  )
+  const parts = [`已排 第 ${weeksLabel(weeks)} 周`]
+  if (blocked.length) parts.push(`第 ${weeksLabel(blocked)} 周有课，留空`)
+  flash(parts.join('，'))
+  restoreFocus(fromKeyboard)
+}
+
+function onPress(pid: PersonId, day: number, period: number): void {
+  const info = schedule.cell(week.value, day, period)
+  if (info.duty?.personId === pid) {
+    write(pid, day, period)
+    return
+  }
+  const why = blockReason(pid, day, period)
+  if (why) {
+    deny(pid, day, period, why)
+    return
+  }
   drag.value = { pid, day, start: period, end: period }
 }
 
-function onHalfEnter(pid: PersonId, day: number, period: number): void {
+function onEnter(pid: PersonId, day: number, period: number): void {
   const d = drag.value
   if (d && d.pid === pid && d.day === day) d.end = period
 }
 
-function isPreview(day: number, period: number): boolean {
+function onPick(pid: PersonId, day: number, period: number): void {
+  const fromKeyboard = document.activeElement instanceof HTMLElement && !!document.activeElement.dataset.slot
+  write(pid, day, period, fromKeyboard)
+}
+
+function previewPid(day: number, period: number): PersonId | null {
   const d = drag.value
-  if (!d || d.day !== day) return false
+  if (!d || d.day !== day) return null
   const [lo, hi] = d.start <= d.end ? [d.start, d.end] : [d.end, d.start]
-  return period >= lo && period <= hi
+  if (period < lo || period > hi) return null
+  return schedule.available(d.pid, week.value, day, period) || (period === d.start) ? d.pid : null
+}
+
+function setMenu(day: number, period: number, open: boolean): void {
+  menuAt.value = open ? `${day}-${period}` : null
+}
+
+function onCancel(pid: PersonId, day: number, period: number): void {
+  menuAt.value = null
+  write(pid, day, period, true)
+}
+
+function onSwap(to: PersonId, day: number, period: number): void {
+  menuAt.value = null
+  const from = schedule.cell(week.value, day, period).duty?.personId
+  if (!from) return
+  const written = schedule.replaceWithSync(week.value, day, period, from, to)
+  const weeks = [...new Set(written.map((k) => Number(k.split('|')[0])))]
+  washWeeks(weeks, personColor(to))
+  flash(`换成 ${config.personName(to)}，第 ${weeksLabel(weeks)} 周`)
+  restoreFocus(true)
+}
+
+function onDocPointer(e: PointerEvent): void {
+  if (menuAt.value && !(e.target instanceof Element && e.target.closest('.menu, .brick'))) menuAt.value = null
+}
+
+function onEsc(e: KeyboardEvent): void {
+  if (e.key === 'Escape') menuAt.value = null
 }
 
 function commitDrag(): void {
   const d = drag.value
   drag.value = null
   if (!d) return
-  const key = dutyKey(week.value, d.day, d.start)
-
-  // 点击：切换该半格的排班（含聚焦区间内向后同步/取消）
   if (d.start === d.end) {
-    const existing = schedule.duty.dutyMap[key]
-    if (existing?.personId === d.pid) {
-      schedule.removeWithSync(week.value, d.day, d.start, d.pid)
-    } else if (available(d.pid, week.value, d.day, d.start)) {
-      schedule.assignWithSync(week.value, d.day, d.start, d.pid)
-    }
-    // 有课或已被另一人占用：颜色已说明，静默忽略
+    write(d.pid, d.day, d.start)
     return
   }
-
-  // 拖动：整段连排并同步，遇不可排的节跳过
   const [lo, hi] = d.start <= d.end ? [d.start, d.end] : [d.end, d.start]
   const entries: Record<string, { personId: PersonId }> = {}
+  let skipped = 0
   for (let p = lo; p <= hi; p++) {
-    if (available(d.pid, week.value, d.day, p)) schedule.collectSync(entries, week.value, d.day, p, d.pid)
+    if (schedule.available(d.pid, week.value, d.day, p)) schedule.collectSync(entries, week.value, d.day, p, d.pid)
+    else skipped += 1
   }
-  if (Object.keys(entries).length) schedule.duty.batchSet(entries)
+  const keys = Object.keys(entries)
+  if (!keys.length) {
+    flash('这些节都不能排')
+    return
+  }
+  schedule.duty.batchSet(entries)
+  const weeks = [...new Set(keys.map((k) => Number(k.split('|')[0])))]
+  washWeeks(weeks, personColor(d.pid))
+  const here = keys.filter((k) => k.startsWith(`${week.value}|`)).length
+  const dragWeeks = [...new Set(keys.map((k) => Number(k.split('|')[0])))]
+  flash(`连排 ${here} 节，第 ${weeksLabel(dragWeeks)} 周${skipped ? `，跳过 ${skipped} 节` : ''}`)
 }
 
 function onWindowPointerUp(): void {
   if (drag.value) commitDrag()
 }
 
-onMounted(() => window.addEventListener('pointerup', onWindowPointerUp))
-onBeforeUnmount(() => window.removeEventListener('pointerup', onWindowPointerUp))
+/** 键盘：一条一条走，格子里的条序就是从人员尺来的顺序 */
+function slots(): HTMLElement[] {
+  return [...(gridEl.value?.querySelectorAll<HTMLElement>('[data-slot]') ?? [])]
+}
+
+function onFocusIn(e: FocusEvent): void {
+  const t = e.target
+  if (t instanceof HTMLElement && t.dataset.slot) activeId.value = t.dataset.slot
+}
+
+function focusSlot(id: string | null): void {
+  if (!id) return
+  activeId.value = id
+  nextTick(() => {
+    const el = slots().find((s) => s.dataset.slot === id)
+    el?.focus()
+  })
+}
+
+function neighbor(from: HTMLElement, key: string): HTMLElement | null {
+  const list = slots()
+  if (key === 'ArrowLeft' || key === 'ArrowRight') {
+    const i = list.indexOf(from)
+    return list[i + (key === 'ArrowRight' ? 1 : -1)] ?? null
+  }
+  const cell = from.closest<HTMLElement>('[data-day]')
+  const day = cell?.dataset.day
+  const pid = from.dataset.pid
+  const nextPeriod = Number(cell?.dataset.period) + (key === 'ArrowDown' ? 1 : -1)
+  const inCell = (el: HTMLElement) => {
+    const c = el.closest<HTMLElement>('[data-day]')
+    return c?.dataset.day === day && Number(c?.dataset.period) === nextPeriod
+  }
+  return list.find((el) => inCell(el) && el.dataset.pid === pid) ?? list.find(inCell) ?? null
+}
+
+function onKeydown(e: KeyboardEvent): void {
+  const t = e.target
+  if (!(t instanceof HTMLElement) || !t.dataset.slot) return
+  if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return
+  const next = neighbor(t, e.key)
+  if (!next) return
+  e.preventDefault()
+  focusSlot(next.dataset.slot ?? null)
+}
+
+function armFirst(): void {
+  const first = slots().find((el) => el.tabIndex === 0)
+  if (first) activeId.value = first.dataset.slot ?? null
+}
 
 function dayDate(day: number): string {
   return fmtMD(courseDate(config.state.semesterStart, week.value, day))
 }
 
-const periodLabels = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
+onMounted(() => {
+  window.addEventListener('pointerup', onWindowPointerUp)
+  window.addEventListener('pointerdown', onDocPointer)
+  window.addEventListener('keydown', onEsc)
+  nextTick(armFirst)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerup', onWindowPointerUp)
+  window.removeEventListener('pointerdown', onDocPointer)
+  window.removeEventListener('keydown', onEsc)
+  window.clearTimeout(denialTimer)
+})
+
+watch(
+  () => [week.value, config.state.ui.hideCourses, persons.value.length, config.state.ui.hiddenIds.length] as const,
+  () => {
+    denial.value = null
+    drag.value = null
+    menuAt.value = null
+    nextTick(armFirst)
+  },
+)
 </script>
 
 <template>
-  <div class="grid-scroll">
-    <div class="week-grid" :class="{ dragging: !!drag, solo: config.state.ui.hideCourses }">
-      <div class="corner" />
-      <div v-for="(dname, i) in DAY_NAMES" :key="dname" class="day-head" :class="{ 'day-sep': i > 0 }">
-        <span class="dname">{{ dname }}</span>
-        <span class="ddate">{{ dayDate(i + 1) }}</span>
-      </div>
-
-      <template v-for="p in periodLabels" :key="p">
-        <div class="period-label">{{ p }}</div>
-        <DutyCell
-          v-for="d in 7"
-          :key="`${p}-${d}`"
-          :week="week"
-          :day="d"
-          :period="p"
-          :preview="isPreview(d, p)"
-          :preview-pid="drag?.pid ?? null"
-          :class="{ 'edge-b': p === PERIOD_COUNT, 'day-sep': d > 1 }"
-          @press="(pid) => onHalfPress(pid, d, p)"
-          @enter="(pid) => onHalfEnter(pid, d, p)"
-        />
-      </template>
+  <div
+    ref="gridEl"
+    class="grid"
+    :class="{ solo: config.state.ui.hideCourses }"
+    role="grid"
+    :aria-label="`第${week}周`"
+    @keydown="onKeydown"
+    @focusin="onFocusIn"
+  >
+    <div class="corner" role="presentation" />
+    <div v-for="(name, i) in DAY_NAMES" :key="name" class="day-head" role="columnheader">
+      <span class="day-name">{{ name }}</span>
+      <span class="day-date">{{ dayDate(i + 1) }}</span>
     </div>
+
+    <template v-for="p in periods" :key="p">
+      <div class="period" role="rowheader">{{ p }}</div>
+      <DutyCell
+        v-for="d in 7"
+        :key="`${week}-${d}-${p}`"
+        :week="week"
+        :day="d"
+        :period="p"
+        :cell-id="`${d}-${p}`"
+        :active-id="activeId"
+        :preview-pid="previewPid(d, p)"
+        :denial="denial && denial.day === d && denial.period === p ? denial : null"
+        :menu-open="menuAt === `${d}-${p}`"
+        :data-day="d"
+        :data-period="p"
+        @press="(pid) => onPress(pid, d, p)"
+        @enter="(pid) => onEnter(pid, d, p)"
+        @pick="(pid) => onPick(pid, d, p)"
+        @cancel="(pid) => onCancel(pid, d, p)"
+        @swap="(pid) => onSwap(pid, d, p)"
+        @menu="(open) => setMenu(d, p, open)"
+      />
+    </template>
   </div>
 </template>
 
 <style scoped>
-/* 窗口太窄时横向滚动，而不是把格子压坏 */
-.grid-scroll {
-  overflow-x: auto;
-  border-radius: 12px;
-}
-
-/* 连续无框课表：外层一个圆角面板，内部仅发丝线分隔，不断开 */
-.week-grid {
+.grid {
   display: grid;
-  grid-template-columns: 44px repeat(7, minmax(80px, 1fr));
-  min-width: 604px;
-  background: #fff;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 12px;
-  overflow: hidden;
+  grid-template-columns: 40px repeat(7, minmax(0, 1fr));
+  grid-template-rows: 48px repeat(7, minmax(52px, 1fr));
+  height: 100%;
+  border-top: 1px solid var(--ink);
   user-select: none;
 }
 
-/* 只看排班：每天一列，窄屏也放得下 */
-.week-grid.solo {
-  grid-template-columns: 44px repeat(7, minmax(48px, 1fr));
-  min-width: 380px;
-}
-
-.week-grid.dragging {
-  cursor: crosshair;
-}
-
 .corner,
-.day-head,
-.period-label {
-  background: #fafbfc;
+.day-head {
+  border-bottom: 1px solid var(--ink);
 }
 
 .day-head {
   display: flex;
   align-items: baseline;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 4px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  gap: 8px;
+  padding: 0 8px;
+  align-self: stretch;
+  padding-top: 18px;
 }
 
-.day-head.day-sep {
-  border-left: 1px solid var(--el-border-color-dark);
-}
-
-.dname {
+.day-name {
   font-weight: 600;
-  font-size: 13px;
 }
 
-.ddate {
-  font-size: 11px;
-  color: var(--el-text-color-regular);
-}
-
-.period-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.day-date {
+  color: var(--muted);
   font-size: 12px;
-  color: var(--el-text-color-regular);
-  border-right: 1px solid var(--el-border-color-dark);
 }
 
-@media (max-width: 900px) {
-  .dname {
-    font-size: 12px;
-  }
+.period {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 6px 0 0 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
 
-  .ddate {
-    display: none;
-  }
-
-  .day-head {
-    gap: 0;
-  }
+.grid > :deep(.cell:nth-child(8n + 2)) {
+  border-left: 1px solid var(--line);
 }
 </style>

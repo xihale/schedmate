@@ -7,8 +7,8 @@ export interface Person {
   color: string
 }
 
-/** 新增人员的轮换配色 */
-export const PERSON_PALETTE = ['#4C84F0', '#41A86E', '#E6A23C', '#9C6BE8', '#37B3CE', '#E36A6A'] as const
+/** 新增人员的轮换配色（清新自然、低眩光且对比度清晰） */
+export const PERSON_PALETTE = ['#2E9E6B', '#2F80ED', '#E67E22', '#8E44AD', '#D83A6F', '#028090'] as const
 
 /** 事实：解析自 xlsx，导入后只读 */
 export interface Course {

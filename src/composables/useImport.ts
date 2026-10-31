@@ -45,8 +45,17 @@ export function useImport() {
     const lines: string[] = []
     try {
       for (const file of files) {
+        const known = config.state.persons.length
         const person = resolvePerson(file)
-        const report = await timetable.importFor(person.id, file)
+        const created = config.state.persons.length > known
+        let report
+        try {
+          report = await timetable.importFor(person.id, file)
+        } catch (e) {
+          // 解析失败不该在人员尺上留一个空人
+          if (created) config.removePerson(person.id)
+          throw e
+        }
         const safeName = file.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         lines.push(`${person.name}（${safeName}）：${reportText(report)}`)
       }

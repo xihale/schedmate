@@ -61,11 +61,19 @@ export const useDutyStore = defineStore('duty', () => {
     state.value.map = {}
   }
 
+
+  /** 移除人员：删掉他的排班，并清空撤销栈，避免撤销把已删的人写回来 */
+  function forgetPerson(personId: string): void {
+    for (const [key, entry] of Object.entries(state.value.map)) {
+      if (entry.personId === personId) delete state.value.map[key]
+    }
+    resetHistory()
+  }
   /** 重导课表后调用：事实已变，旧快照无意义 */
   function resetHistory(): void {
     undoStack.value = []
     redoStack.value = []
   }
 
-  return { state, dutyMap, count, canUndo, canRedo, setDuty, batchSet, undo, redo, clearAllDuties, resetHistory }
+  return { state, dutyMap, count, canUndo, canRedo, setDuty, batchSet, undo, redo, clearAllDuties, resetHistory, forgetPerson }
 })
