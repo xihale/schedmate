@@ -78,7 +78,7 @@ async function clearEverything(): Promise<void> {
         <el-input v-model="p.name" maxlength="10" aria-label="姓名" />
         <button class="link danger" @click="removePerson(p.id, p.name)">移除</button>
       </div>
-      <button class="link" @click="addPerson">＋ 添加人员</button>
+      <button class="btn-add" @click="addPerson">＋ 添加人员</button>
     </section>
 
     <section class="sec">
@@ -101,23 +101,49 @@ async function clearEverything(): Promise<void> {
 
 <style scoped>
 .sec + .sec {
-  margin-top: 28px;
+  margin-top: 24px;
 }
 
 h4 {
-  margin: 0 0 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--ink);
-  font-size: 13px;
+  margin: 0 0 10px;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
 }
 
 .person {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
+  padding: 4px 6px;
+  margin: 2px 0;
+  transition: background-color 0.15s ease;
+}
+
+.person:hover {
+  background: var(--tint);
+}
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  margin-top: 6px;
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-add:hover {
+  border-color: var(--ink);
+  background: var(--tint);
 }
 
 .row {
@@ -125,25 +151,30 @@ h4 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .link {
   flex: none;
-  height: 32px;
-  padding: 0;
+  height: 28px;
+  padding: 0 10px;
   border: 0;
-  background: none;
+  background: transparent;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .link:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  background: var(--tint);
 }
 
 .danger {
   color: var(--red);
+}
+
+.danger:hover {
+  background: rgba(227, 6, 19, 0.08);
 }
 </style>

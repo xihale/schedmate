@@ -8,24 +8,25 @@
   --bg: #ffffff;
   --ink: #111111;
   --muted: #757575;
-  --faint: #a8a8a8;
+  --faint: #9e9e9e;
   --line: #e6e6e6;
-  --line-strong: #111111;
+  --line-strong: #cccccc;
   --tint: #f5f5f5;
+  --tint-hover: #eeeeee;
   --red: #e30613;
 
   --pad: 24px;
   --rail-w: 168px;
 
-  --font: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  --font: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 
   /* Element Plus 对齐 */
   --el-color-primary: #111111;
-  --el-color-primary-light-3: #444444;
-  --el-color-primary-light-5: #777777;
-  --el-color-primary-light-7: #bbbbbb;
-  --el-color-primary-light-8: #dddddd;
-  --el-color-primary-light-9: #f5f5f5;
+  --el-color-primary-light-3: #4d4d4d;
+  --el-color-primary-light-5: #808080;
+  --el-color-primary-light-7: #b3b3b3;
+  --el-color-primary-light-8: #d9d9d9;
+  --el-color-primary-light-9: #f0f0f0;
   --el-color-primary-dark-2: #000000;
   --el-color-danger: #e30613;
   --el-border-radius-base: 0;
@@ -36,7 +37,7 @@
   --el-text-color-secondary: #757575;
   --el-border-color: #e6e6e6;
   --el-border-color-light: #e6e6e6;
-  --el-border-color-lighter: #e6e6e6;
+  --el-border-color-lighter: #f0f0f0;
   --el-box-shadow-light: none;
   --el-box-shadow: none;
   --el-font-family: var(--font);
@@ -60,8 +61,8 @@ body {
 }
 
 ::selection {
-  background: var(--ink);
-  color: #fff;
+  background: rgba(17, 17, 17, 0.12);
+  color: inherit;
 }
 
 button {
@@ -74,11 +75,15 @@ button {
   outline-offset: 1px;
 }
 
-/* 浮层：1px 黑框，无阴影 */
+/* 浮层：1px 墨线描边，直角无阴影 */
 .el-dialog,
-.el-message-box,
-.el-notification,
-.el-message,
+.el-message-box {
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
 .el-popper.is-light,
 .el-picker__popper {
   border: 1px solid var(--ink) !important;
@@ -86,8 +91,16 @@ button {
   box-shadow: none !important;
 }
 
+.el-notification,
+.el-message {
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 .el-overlay {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: none;
 }
 
 .el-dialog__title,
@@ -106,12 +119,25 @@ button {
 
 .el-button {
   font-weight: 500;
+  border-radius: 0 !important;
+  transition: none;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 9999px;
+  transition: background-color 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.24);
 }

@@ -146,18 +146,19 @@ onBeforeUnmount(() => {
 
 .intro-btn {
   align-self: flex-start;
-  height: 44px;
-  padding: 0 28px;
+  height: 42px;
+  padding: 0 24px;
   border: 0;
   background: var(--ink);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .intro-btn:hover {
-  background: #333;
+  background: #000000;
 }
 
 .intro-btn:disabled {
@@ -181,13 +182,13 @@ onBeforeUnmount(() => {
 
 .drop {
   position: fixed;
-  inset: 12px;
+  inset: 16px;
   z-index: 3000;
   display: grid;
   place-items: center;
-  border: 2px solid var(--ink);
-  background: rgba(255, 255, 255, 0.92);
-  font-size: 24px;
+  border: 2px dashed var(--ink);
+  background: rgba(255, 255, 255, 0.94);
+  font-size: 22px;
   font-weight: 700;
   pointer-events: none;
 }

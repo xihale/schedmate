@@ -72,9 +72,12 @@ function onTab(w: number): void {
 <style scoped>
 .tabs {
   display: flex;
-  height: 64px;
+  align-items: center;
+  gap: 4px;
+  height: 52px;
   overflow-x: auto;
   flex: none;
+  padding: 6px 0;
 }
 
 .tab {
@@ -83,64 +86,69 @@ function onTab(w: number): void {
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  gap: 2px;
-  min-width: 76px;
-  padding: 0 14px 0 0;
+  gap: 1px;
+  min-width: 68px;
+  padding: 5px 12px;
   border: 0;
-  background: none;
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
   text-align: left;
-  transition: color 0.15s;
-}
-
-.tab::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 14px;
-  bottom: 0;
-  height: 3px;
-  background: transparent;
-  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .tab:hover {
+  background: var(--tint);
   color: var(--ink);
+}
+
+.tab:active {
+  transform: none;
 }
 
 .tab.current {
-  color: var(--ink);
-}
-
-.tab.current::before {
+  color: #ffffff;
   background: var(--ink);
 }
 
-.tab.washed::before {
-  background: var(--wash);
+.tab.current .num {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tab.current .date {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* 写入后的短暂浸色：底部一条颜色，不描边 */
+.tab.washed {
+  box-shadow: inset 0 -2px 0 var(--wash);
 }
 
 .num {
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .date {
-  font-size: 12px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .marks {
   position: absolute;
-  top: 14px;
-  right: 6px;
+  top: 7px;
+  right: 7px;
   display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .marks i {
   display: block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 .gap {
@@ -148,7 +156,7 @@ function onTab(w: number): void {
 }
 
 .done {
-  background: var(--ink);
-  opacity: 0.25;
+  background: currentColor;
+  opacity: 0.3;
 }
 </style>

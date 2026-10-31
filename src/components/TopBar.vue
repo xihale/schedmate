@@ -147,7 +147,7 @@ async function onPick(e: Event): Promise<void> {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
 
 .range {
@@ -159,31 +159,40 @@ async function onPick(e: Event): Promise<void> {
 
 .range-label {
   color: var(--muted);
+  font-size: 12px;
 }
 
 .range-select {
-  height: 32px;
-  padding: 0 28px 0 10px;
+  height: 30px;
+  padding: 0 26px 0 10px;
   border: 1px solid var(--line);
-  border-radius: 0;
-  background: #fff
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23111' stroke-width='1.2'/%3E%3C/svg%3E")
-    no-repeat right 10px center;
+  background: #ffffff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23111111' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 8px center;
   appearance: none;
   font: inherit;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--ink);
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
 .range-select:hover {
   border-color: var(--ink);
 }
 
+.range-select:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: none;
+}
+
 .status {
   flex: 1;
   min-width: 0;
   margin: 0;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -193,17 +202,20 @@ async function onPick(e: Event): Promise<void> {
 .tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   flex: none;
 }
 
 .tools button {
-  height: 32px;
+  height: 30px;
   padding: 0 10px;
   border: 0;
-  background: none;
+  background: transparent;
   cursor: pointer;
+  font-size: 12px;
   font-weight: 500;
+  color: var(--ink);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .tools button:hover:not(:disabled) {
@@ -211,7 +223,7 @@ async function onPick(e: Event): Promise<void> {
 }
 
 .tools button:disabled {
-  color: var(--faint);
+  opacity: 0.35;
   cursor: default;
 }
 
@@ -220,10 +232,14 @@ async function onPick(e: Event): Promise<void> {
   color: #fff;
 }
 
+.tools button.on:hover {
+  background: #000000;
+}
+
 .sep {
   width: 1px;
-  height: 16px;
-  margin: 0 8px;
+  height: 14px;
+  margin: 0 4px;
   background: var(--line);
 }
 

@@ -150,6 +150,7 @@ function colStyle(p: Person): Record<string, string> {
   display: flex;
   min-width: 0;
   min-height: 0;
+  background: #ffffff;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
@@ -157,41 +158,31 @@ function colStyle(p: Person): Record<string, string> {
 .col {
   position: relative;
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
-  padding: 0;
+  padding: 2px;
   border: 0;
-  background: #fff;
+  background: transparent;
   cursor: pointer;
   touch-action: none;
-}
-
-/* 空闲：底部一条人的颜色 */
-.col::after {
-  content: '';
-  position: absolute;
-  left: 3px;
-  right: 3px;
-  bottom: 4px;
-  height: 2px;
-  background: var(--c);
-}
-
-.col + .col {
-  border-left: 1px dotted var(--line);
-}
-
-.col-name {
-  display: none;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
 }
 
 .col:hover:not(.busy),
 .col:focus-visible:not(.busy) {
   background: var(--c-soft);
+}
+
+.col-name {
+  display: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .col:hover:not(.busy) .col-name,
@@ -200,25 +191,22 @@ function colStyle(p: Person): Record<string, string> {
 }
 
 .col:focus-visible {
-  outline-offset: -2px;
+  outline: 1px solid var(--ink);
+  outline-offset: -1px;
 }
 
-/* 有课：灰底，不可排 */
+/* 有课：斜纹底，一眼与空闲区分，不可排 */
 .col.busy {
-  background: var(--tint);
   cursor: not-allowed;
-}
-
-.col.busy::after {
-  display: none;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    rgba(17, 17, 17, 0.09) 4px 6px
+  );
 }
 
 .col.preview {
   cursor: pointer;
-}
-
-.col.preview::after {
-  display: none;
 }
 
 .col.preview .col-name {
@@ -231,12 +219,14 @@ function colStyle(p: Person): Record<string, string> {
 }
 
 .brick {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
   min-width: 0;
+  margin: 2px;
   padding: 6px 8px;
   border: 0;
   color: #fff;
@@ -244,9 +234,36 @@ function colStyle(p: Person): Record<string, string> {
   cursor: pointer;
 }
 
+.brick:hover {
+  filter: brightness(0.92);
+}
+
 .brick:focus-visible {
+  outline: 2px solid #ffffff;
   outline-offset: -3px;
-  outline-color: #fff;
+}
+
+/* 待取消：白色内环标出 */
+.brick.selected {
+  box-shadow: inset 0 0 0 2px #ffffff;
+}
+
+/* 悬停/聚焦时亮出 ×：这一下是取消 */
+.brick::after {
+  content: '×';
+  position: absolute;
+  top: 3px;
+  right: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: #ffffff;
+  opacity: 0;
+}
+
+.brick:hover::after,
+.brick:focus-visible::after {
+  opacity: 0.9;
 }
 
 .name {
@@ -259,19 +276,24 @@ function colStyle(p: Person): Record<string, string> {
 }
 
 .flag {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
   background: var(--red);
   color: #fff;
+  letter-spacing: 0.02em;
 }
 
 .conflict .brick {
   box-shadow: inset 0 0 0 2px var(--red);
 }
 
+.brick.selected.conflict {
+  box-shadow: inset 0 0 0 2px #ffffff, inset 0 0 0 4px var(--red);
+}
+
 .gap {
-  box-shadow: inset 0 0 0 1px var(--red);
+  box-shadow: inset 0 0 0 1.5px var(--red);
 }
 
 .gap-tag {
@@ -281,16 +303,18 @@ function colStyle(p: Person): Record<string, string> {
   font-size: 11px;
   font-weight: 600;
   color: var(--red);
+  background: rgba(227, 6, 19, 0.08);
+  padding: 1px 5px;
   pointer-events: none;
 }
 
 .deny {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
   z-index: 3;
-  padding: 2px 6px;
+  padding: 3px 6px;
   background: var(--red);
   color: #fff;
   font-size: 11px;
@@ -298,17 +322,29 @@ function colStyle(p: Person): Record<string, string> {
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+  animation: denyPop 0.15s ease-out;
+}
+
+@keyframes denyPop {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .menu {
   position: absolute;
-  top: calc(100% - 4px);
+  top: calc(100% - 2px);
   left: 4px;
   z-index: 20;
-  min-width: 132px;
-  padding: 4px 0;
-  background: #fff;
+  min-width: 136px;
+  padding: 4px;
+  background: #ffffff;
   border: 1px solid var(--ink);
+  animation: menuFadeIn 0.12s ease-out;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .item {
@@ -317,11 +353,14 @@ function colStyle(p: Person): Record<string, string> {
   gap: 8px;
   width: 100%;
   height: 30px;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 0;
   background: none;
   text-align: left;
   white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
   cursor: pointer;
 }
 
@@ -331,15 +370,16 @@ function colStyle(p: Person): Record<string, string> {
   outline: none;
 }
 
-.sw {
-  width: 10px;
-  height: 10px;
-  flex: none;
+.empty {
+  display: block;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.remove {
-  margin-top: 4px;
-  border-top: 1px solid var(--line);
-  color: var(--red);
+.sw {
+  width: 8px;
+  height: 8px;
+  flex: none;
 }
 </style>

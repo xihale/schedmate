@@ -66,15 +66,17 @@ function toggle(pid: PersonId): void {
   width: var(--rail-w);
   flex: none;
   padding: 0 var(--pad);
-  padding-top: 112px;
+  padding-top: 104px;
 }
 
 .head {
   display: flex;
   justify-content: space-between;
-  padding-bottom: 8px;
+  align-items: center;
+  padding: 0 8px 8px;
   color: var(--muted);
   font-size: 12px;
+  font-weight: 500;
 }
 
 .person {
@@ -82,46 +84,77 @@ function toggle(pid: PersonId): void {
   align-items: center;
   gap: 10px;
   width: 100%;
-  height: 36px;
-  padding: 0;
+  height: 34px;
+  padding: 0 8px;
+  margin-bottom: 2px;
   border: 0;
-  border-top: 1px solid var(--line);
-  background: none;
+  background: transparent;
   cursor: pointer;
   text-align: left;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.person:hover {
+  background-color: var(--tint);
 }
 
 .sw {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   flex: none;
+  transition: transform 0.15s ease;
+}
+
+.person:hover .sw {
+  transform: scale(1.15);
 }
 
 .name {
   flex: 1;
   min-width: 0;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.15s ease;
 }
 
 .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  background: rgba(0, 0, 0, 0.04);
   color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.person:hover .name {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.person:hover .count {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+}
+
+.person.off {
+  opacity: 0.4;
+}
+
+.person.off:hover {
+  opacity: 0.7;
 }
 
 .person.off .sw {
   background: transparent !important;
   box-shadow: inset 0 0 0 1px var(--faint);
+  transform: none;
 }
 
-.person.off .name,
 .person.off .count {
-  color: var(--faint);
+  background: transparent;
 }
 </style>
