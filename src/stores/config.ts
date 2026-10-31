@@ -23,6 +23,8 @@ interface ConfigState {
     focus: FocusRange
     hiddenIds: PersonId[] // 隐藏列的人员
     hideCourses: boolean // 只看排班：隐去课程，每人一格只显示谁当班
+    /** 写入是否向后同步：关掉后所有改动只写当前周 */
+    syncWrite: boolean
   }
 }
 
@@ -43,6 +45,7 @@ function defaultUi(startISO: string): ConfigState['ui'] {
     focus: defaultFocus(startISO),
     hiddenIds: [],
     hideCourses: false,
+    syncWrite: true,
   }
 }
 
@@ -51,6 +54,7 @@ const DEFAULT_START = '2026-08-31'
 /** 兼容无 focus 字段的旧存档：补默认聚焦，并把落在区间外的 week 拉回区间 */
 function normalize(s: ConfigState): ConfigState {
   s.ui.focus = clampFocus(s.ui.focus ?? defaultFocus(s.semesterStart), WEEK_COUNT)
+  s.ui.syncWrite = s.ui.syncWrite ?? true
   if (s.ui.week < s.ui.focus.start || s.ui.week > s.ui.focus.end) s.ui.week = s.ui.focus.start
   return s
 }

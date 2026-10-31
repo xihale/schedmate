@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import type { Course, DutyEntry, PersonId } from '../types'
-import { PERIOD_COUNT, WEEK_COUNT, dutyKey } from '../types'
+import { PERIOD_COUNT, WEEK_COUNT, dutyKey, parseDutyKey } from '../types'
 import { useTimetableStore } from '../stores/timetable'
 import { useDutyStore } from '../stores/duty'
 import { useConfigStore } from '../stores/config'
@@ -108,7 +108,12 @@ export function useSchedule() {
   /** 有缺口（待手动调整）的周集合 */
   const weeksWithGaps = computed(() => new Set([...gapMap.value.keys()].map((k) => Number(k.split('|')[0]))))
 
-  /** 把 entries 累加上 (week,day,period,pid) 及其聚焦区间内后续周的同步写入 */
+  /** 写入向后波及的周：开同步 → 聚焦区间内后续周；关同步 → 只有当前周 */
+  function laterWeeks(week: number): number[] {
+    return config.state.ui.syncWrite ? focusWeeks.value.filter((x) => x > week) : []
+  }
+
+  /** 把 entries 累加上 (week,day,period,pid) 及其同步范围内的后续周写入 */
   function collectSync(
     entries: Record<string, DutyEntry>,
     week: number,
@@ -116,7 +121,7 @@ export function useSchedule() {
     period: number,
     pid: PersonId,
   ): void {
-    for (const w of [week, ...focusWeeks.value.filter((x) => x > week)]) {
+    for (const w of [week, ...laterWeeks(week)]) {
       const key = dutyKey(w, day, period)
       if (duty.state.map[key]) continue
       if (busyIndex.value.has(`${pid}|${w}|${day}|${period}`)) continue // 课程冲突：留缺口
@@ -132,10 +137,10 @@ export function useSchedule() {
     return entries
   }
 
-  /** 取消排班，聚焦区间内后续周的同人同位排班一并取消。返回实际删掉的格。 */
+  /** 取消排班，同步范围内后续周的同人同位排班一并取消。返回实际删掉的格。 */
   function removeWithSync(week: number, day: number, period: number, pid: PersonId): Record<string, null> {
     const entries: Record<string, null> = {}
-    for (const w of [week, ...focusWeeks.value.filter((x) => x > week)]) {
+    for (const w of [week, ...laterWeeks(week)]) {
       const key = dutyKey(w, day, period)
       if (duty.state.map[key]?.personId === pid) entries[key] = null
     }
@@ -143,11 +148,28 @@ export function useSchedule() {
     return entries
   }
 
-  /** 换人：本格及后续周里 from 的同位排班换成 to（to 有课的周空出来），只记一次撤销。返回写入 to 的格。 */
+  /** 批量取消：每格按同步规则展开，合并成一次撤销。返回实际删掉的格。 */
+  function removeManyWithSync(keys: string[]): Record<string, null> {
+    const entries: Record<string, null> = {}
+    for (const key of keys) {
+      const cur = duty.state.map[key]
+      if (!cur) continue
+      const { week, day, period } = parseDutyKey(key)
+      entries[key] = null
+      for (const w of laterWeeks(week)) {
+        const k = dutyKey(w, day, period)
+        if (duty.state.map[k]?.personId === cur.personId) entries[k] = null
+      }
+    }
+    if (Object.keys(entries).length) duty.batchSet(entries)
+    return entries
+  }
+
+  /** 换人：本格及同步范围内后续周里 from 的同位排班换成 to（to 有课的周空出来），只记一次撤销。返回写入 to 的格。 */
   function replaceWithSync(week: number, day: number, period: number, from: PersonId, to: PersonId): string[] {
     const entries: Record<string, DutyEntry | null> = {}
     const written: string[] = []
-    for (const w of [week, ...focusWeeks.value.filter((x) => x > week)]) {
+    for (const w of [week, ...laterWeeks(week)]) {
       const key = dutyKey(w, day, period)
       const cur = duty.state.map[key]
       if (cur && cur.personId !== from) continue
@@ -177,6 +199,7 @@ export function useSchedule() {
     collectSync,
     assignWithSync,
     removeWithSync,
+    removeManyWithSync,
     replaceWithSync,
   }
 }

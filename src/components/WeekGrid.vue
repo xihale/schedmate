@@ -24,6 +24,9 @@ const gridEl = ref<HTMLElement | null>(null)
 const activeId = ref<string | null>(null)
 /** 打开换人菜单的格：`${day}-${period}` */
 const menuAt = ref<string | null>(null)
+/** Ctrl+点选中的待取消格：dutyKey 集合，只含已排格 */
+const selection = ref<Set<string>>(new Set())
+const selCount = computed(() => selection.value.size)
 
 const periods = Array.from({ length: PERIOD_COUNT }, (_, i) => i + 1)
 
@@ -73,9 +76,10 @@ function restoreFocus(fromKeyboard: boolean): void {
 function write(pid: PersonId, day: number, period: number, fromKeyboard = false): void {
   const info = schedule.cell(week.value, day, period)
   if (info.duty?.personId === pid) {
+    selection.value = new Set()
     const removed = schedule.removeWithSync(week.value, day, period, pid)
     const n = Object.keys(removed).length
-    flash(n > 1 ? `已取消 ${n} 周` : '已取消')
+    flash(schedule.config.state.ui.syncWrite ? (n > 1 ? `已取消 ${n} 周` : '已取消') : '已取消本周')
     restoreFocus(fromKeyboard)
     return
   }
@@ -92,19 +96,41 @@ function write(pid: PersonId, day: number, period: number, fromKeyboard = false)
   }
   const weeks = [...new Set(keys.map((k) => Number(k.split('|')[0])))]
   washWeeks(weeks, personColor(pid))
-  // 逐周对账：写了哪些、被课挡了哪些，一行说完
-  const writtenSet = new Set(weeks)
-  const blocked = schedule.focusWeeks.value.filter(
-    (w) =>
-      w > week.value &&
-      !writtenSet.has(w) &&
-      !schedule.duty.state.map[dutyKey(w, day, period)] &&
-      schedule.busyIndex.value.has(`${pid}|${w}|${day}|${period}`),
-  )
-  const parts = [`已排 第 ${weeksLabel(weeks)} 周`]
-  if (blocked.length) parts.push(`第 ${weeksLabel(blocked)} 周有课，留空`)
+  // 逐周对账：写了哪些、被课挡了哪些，一行说完；只排本周时没有对账
+  const parts = [schedule.config.state.ui.syncWrite ? `已排 第 ${weeksLabel(weeks)} 周` : `已排 第 ${week.value} 周 第 ${day} 天第 ${period} 节`]
+  if (schedule.config.state.ui.syncWrite) {
+    const writtenSet = new Set(weeks)
+    const blocked = schedule.focusWeeks.value.filter(
+      (w) =>
+        w > week.value &&
+        !writtenSet.has(w) &&
+        !schedule.duty.state.map[dutyKey(w, day, period)] &&
+        schedule.busyIndex.value.has(`${pid}|${w}|${day}|${period}`),
+    )
+    if (blocked.length) parts.push(`第 ${weeksLabel(blocked)} 周有课，留空`)
+  }
   flash(parts.join('，'))
   restoreFocus(fromKeyboard)
+}
+
+/** Ctrl+点：把已排格加进/移出待取消集合 */
+function toggleSelect(day: number, period: number): void {
+  const key = dutyKey(week.value, day, period)
+  const next = new Set(selection.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  selection.value = next
+}
+
+/** 已选格一键取消：每格按同步规则展开，只记一次撤销 */
+function cancelSelection(): void {
+  const keys = [...selection.value]
+  if (!keys.length) return
+  const removed = schedule.removeManyWithSync(keys)
+  const n = keys.length
+  const total = Object.keys(removed).length
+  selection.value = new Set()
+  flash(total > n ? `已取消 ${n} 处，同步连带 ${total - n} 处` : `已取消 ${n} 处排班`)
 }
 
 function onPress(pid: PersonId, day: number, period: number): void {
@@ -160,11 +186,16 @@ function onSwap(to: PersonId, day: number, period: number): void {
 }
 
 function onDocPointer(e: PointerEvent): void {
-  if (menuAt.value && !(e.target instanceof Element && e.target.closest('.menu, .brick'))) menuAt.value = null
+  const t = e.target
+  if (menuAt.value && !(t instanceof Element && t.closest('.menu, .brick'))) menuAt.value = null
+  if (!(e.ctrlKey || e.metaKey) && !(t instanceof Element && t.closest('.sel-bar'))) selection.value = new Set()
 }
 
 function onEsc(e: KeyboardEvent): void {
-  if (e.key === 'Escape') menuAt.value = null
+  if (e.key === 'Escape') {
+    menuAt.value = null
+    selection.value = new Set()
+  }
 }
 
 function commitDrag(): void {
@@ -273,6 +304,7 @@ watch(
     denial.value = null
     drag.value = null
     menuAt.value = null
+    selection.value = new Set()
     nextTick(armFirst)
   },
 )
@@ -307,60 +339,121 @@ watch(
         :preview-pid="previewPid(d, p)"
         :denial="denial && denial.day === d && denial.period === p ? denial : null"
         :menu-open="menuAt === `${d}-${p}`"
+        :selected="selection.has(dutyKey(week, d, p))"
         :data-day="d"
         :data-period="p"
         @press="(pid) => onPress(pid, d, p)"
         @enter="(pid) => onEnter(pid, d, p)"
         @pick="(pid) => onPick(pid, d, p)"
         @cancel="(pid) => onCancel(pid, d, p)"
+        @select="() => toggleSelect(d, p)"
         @swap="(pid) => onSwap(pid, d, p)"
         @menu="(open) => setMenu(d, p, open)"
       />
     </template>
+
+    <div v-if="selCount" class="sel-bar" role="status" @pointerdown.stop>
+      <span class="sel-count">已选 {{ selCount }} 处</span>
+      <button class="sel-apply" @click="cancelSelection">取消排班</button>
+      <button class="sel-clear" @click="selection = new Set()">清空</button>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .grid {
+  position: relative;
   display: grid;
   grid-template-columns: 40px repeat(7, minmax(0, 1fr));
-  grid-template-rows: 48px repeat(7, minmax(52px, 1fr));
+  grid-template-rows: 44px repeat(7, minmax(52px, 1fr));
   height: 100%;
-  border-top: 1px solid var(--ink);
+  border-top: 1px solid var(--line);
   user-select: none;
+}
+
+.sel-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 12px;
+  background: #ffffff;
+  border: 1px solid var(--ink);
+}
+
+.sel-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.sel-apply {
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sel-apply:hover {
+  background: #000000;
+}
+
+.sel-clear {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sel-clear:hover {
+  color: var(--ink);
 }
 
 .corner,
 .day-head {
-  border-bottom: 1px solid var(--ink);
+  border-bottom: 1px solid var(--line);
 }
 
 .day-head {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 0 8px;
+  padding: 0 10px;
   align-self: stretch;
-  padding-top: 18px;
+  padding-top: 14px;
 }
 
 .day-name {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--ink);
 }
 
 .day-date {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .period {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  padding: 6px 0 0 0;
+  padding: 8px 0 0 4px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 

@@ -61,6 +61,17 @@ const dutiesOnly = computed({
   set: (v: boolean) => (config.state.ui.hideCourses = v),
 })
 
+/** 只排本周：关掉写入的向后同步 */
+const syncOnly = computed({
+  get: () => !config.state.ui.syncWrite,
+  set: (v: boolean) => (config.state.ui.syncWrite = !v),
+})
+
+function toggleSyncOnly(): void {
+  syncOnly.value = !syncOnly.value
+  flash(syncOnly.value ? '只排本周：改动只写当前周' : '同步排班：改动向后同步到范围内后续周')
+}
+
 function onRange(e: Event): void {
   const id = (e.target as HTMLSelectElement).value
   const p = presets.value.find((x) => x.id === id)
@@ -117,6 +128,7 @@ async function onPick(e: Event): Promise<void> {
       <button :disabled="!duty.canUndo" title="Ctrl+Z" @click="undo">撤销</button>
       <button :disabled="!duty.canRedo" title="Ctrl+Shift+Z" @click="redo">重做</button>
       <span class="sep" aria-hidden="true" />
+      <button :aria-pressed="syncOnly" :class="{ on: syncOnly }" @click="toggleSyncOnly">只排本周</button>
       <button :aria-pressed="dutiesOnly" :class="{ on: dutiesOnly }" @click="dutiesOnly = !dutiesOnly">只看排班</button>
       <span class="sep" aria-hidden="true" />
       <button :disabled="importing" @click="pick">导入</button>

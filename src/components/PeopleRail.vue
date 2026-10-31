@@ -2,24 +2,33 @@
 import { computed } from 'vue'
 import { useConfigStore } from '../stores/config'
 import { useDutyStore } from '../stores/duty'
+import { useSchedule } from '../composables/useSchedule'
+import { WEEK_COUNT } from '../types'
 import type { PersonId } from '../types'
+import { focusLabel } from '../lib/dates'
 
 const config = useConfigStore()
 const duty = useDutyStore()
+const { focusWeeks } = useSchedule()
 
 const persons = computed(() => config.state.persons)
 
-/** 本周每人的已排节数：判断要不要换人的依据，留着 */
+/** 聚焦区间（默认整月）内每人的已排节数 */
 const counts = computed(() => {
   const c: Record<PersonId, number> = {}
   for (const p of persons.value) c[p.id] = 0
-  const week = config.state.ui.week
+  const weeks = new Set(focusWeeks.value)
   for (const [key, entry] of Object.entries(duty.state.map)) {
-    if (Number(key.split('|')[0]) !== week) continue
+    if (!weeks.has(Number(key.split('|')[0]))) continue
     c[entry.personId] = (c[entry.personId] ?? 0) + 1
   }
   return c
 })
+
+/** 列头与「范围」下拉同源：整月叫「N月」，其他区间叫「第X-Y周」 */
+const rangeLabel = computed(() =>
+  focusLabel(config.state.semesterStart, focusWeeks.value[0], focusWeeks.value[focusWeeks.value.length - 1], WEEK_COUNT),
+)
 
 function isVisible(pid: PersonId): boolean {
   return !config.state.ui.hiddenIds.includes(pid)
@@ -35,7 +44,7 @@ function toggle(pid: PersonId): void {
 
 <template>
   <aside class="rail" aria-label="人员">
-    <div class="head"><span>人员</span><span>本周</span></div>
+    <div class="head"><span>人员</span><span>{{ rangeLabel }}</span></div>
     <button
       v-for="p in persons"
       :key="p.id"

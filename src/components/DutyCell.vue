@@ -15,6 +15,7 @@ const props = defineProps<{
   activeId: string | null
   cellId: string
   menuOpen: boolean
+  selected?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   enter: [pid: PersonId]
   pick: [pid: PersonId]
   cancel: [pid: PersonId]
+  select: [pid: PersonId]
   swap: [pid: PersonId]
   menu: [open: boolean]
 }>()
@@ -43,6 +45,13 @@ const swappable = computed(() => visible.value.filter((p) => p.id !== dutyPerson
 
 const where = computed(() => `${DAY_NAMES[props.day - 1]}第${props.period}节`)
 const slotId = (pid: PersonId) => `${props.cellId}-${pid}`
+
+/** 已排格的一次点击：普通 = 取消，Ctrl/Cmd = 多选待取消 */
+function onBrickClick(e: MouseEvent): void {
+  if (!dutyPerson.value) return
+  if (e.ctrlKey || e.metaKey) emit('select', dutyPerson.value.id)
+  else emit('cancel', dutyPerson.value.id)
+}
 
 function colTitle(p: Person): string {
   const h = halfOf(p.id)
@@ -69,25 +78,30 @@ function colStyle(p: Person): Record<string, string> {
     :aria-label="where"
     :class="{ conflict: info.conflict, gap: !!info.gapFrom && !dutyPerson, filled: !!dutyPerson }"
   >
-    <!-- 已排 -->
+    <!-- 已排：点一下取消，Ctrl/Cmd 多选，右键/Shift+回车换人 -->
     <button
       v-if="dutyPerson"
       class="brick"
+      :class="{ selected: props.selected }"
       :data-slot="slotId(dutyPerson.id)"
       :data-pid="dutyPerson.id"
       :tabindex="activeId === slotId(dutyPerson.id) ? 0 : -1"
       :style="{ background: dutyFill(dutyPerson.color) }"
-      :aria-label="`${where}，${dutyPerson.name}值班${info.conflict ? '，冲突' : ''}，回车修改`"
+      :aria-label="`${where}，${dutyPerson.name}值班${info.conflict ? '，冲突' : ''}${props.selected ? '，已选中' : ''}，回车取消，Shift+回车换人`"
       aria-haspopup="menu"
       :aria-expanded="menuOpen"
-      @click="emit('menu', !menuOpen)"
-      @keydown.enter.space.prevent="emit('menu', !menuOpen)"
+      :title="props.selected ? '已加入待取消' : '点击取消 · Ctrl+点击多选 · 右键换人'"
+      @click="onBrickClick"
+      @contextmenu.prevent="dutyPerson && emit('menu', true)"
+      @keydown.enter.exact.prevent="dutyPerson && emit('cancel', dutyPerson.id)"
+      @keydown.shift.enter.prevent="emit('menu', true)"
+      @keydown.space.prevent="emit('menu', !menuOpen)"
     >
       <span class="name">{{ dutyPerson.name }}</span>
       <span v-if="info.conflict" class="flag">冲突</span>
     </button>
 
-    <!-- 未排：每人一列 -->
+    <!-- 未排：每人一列，有课斜纹 -->
     <template v-else-if="!solo">
       <button
         v-for="p in visible"
@@ -125,7 +139,7 @@ function colStyle(p: Person): Record<string, string> {
       >
         <i class="sw" :style="{ background: p.color }" />换成 {{ p.name }}
       </button>
-      <button role="menuitem" class="item remove" @click="emit('cancel', dutyPerson.id)">取消排班</button>
+      <span v-if="!swappable.length" class="empty">没有可换的人</span>
     </div>
   </div>
 </template>
