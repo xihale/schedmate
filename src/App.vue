@@ -5,9 +5,21 @@ import TopBar from './components/TopBar.vue'
 import WeekView from './views/WeekView.vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import { IDLE_TTL_DAYS, PURGED_FLAG } from './lib/persist'
+
+function readPurgedFlag(): boolean {
+  try {
+    const purged = sessionStorage.getItem(PURGED_FLAG) === '1'
+    if (purged) sessionStorage.removeItem(PURGED_FLAG)
+    return purged
+  } catch {
+    return false
+  }
+}
 
 const timetable = useTimetableStore()
 const { importing, importFiles } = useImport()
+const autoCleared = ref(readPurgedFlag())
 
 const overlayVisible = ref(false)
 const pickHint = ref('')
@@ -83,6 +95,7 @@ onBeforeUnmount(() => {
         <p class="intro-lead">每人一份 xlsx，可多选，也可直接拖进窗口。</p>
         <button class="intro-btn" :disabled="importing" @click="pick">{{ importing ? '导入中…' : '选择文件' }}</button>
         <p class="intro-hint" :class="{ bad: pickHint }" aria-live="polite">{{ pickHint }}</p>
+        <p v-if="autoCleared" class="intro-note">已自动清理 {{ IDLE_TTL_DAYS }} 天未使用的数据</p>
         <input ref="fileRef" class="file" type="file" accept=".xls,.xlsx" multiple @change="onPick" />
       </main>
 
@@ -174,6 +187,12 @@ onBeforeUnmount(() => {
 
 .intro-hint.bad {
   color: var(--red);
+}
+
+.intro-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .file {
