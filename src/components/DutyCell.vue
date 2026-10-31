@@ -23,7 +23,8 @@ const emit = defineEmits<{
   enter: [pid: PersonId]
   pick: [pid: PersonId]
   cancel: [pid: PersonId]
-  select: [pid: PersonId]
+  selstart: []
+  selenter: []
   swap: [pid: PersonId]
   menu: [open: boolean]
 }>()
@@ -46,11 +47,10 @@ const swappable = computed(() => visible.value.filter((p) => p.id !== dutyPerson
 const where = computed(() => `${DAY_NAMES[props.day - 1]}第${props.period}节`)
 const slotId = (pid: PersonId) => `${props.cellId}-${pid}`
 
-/** 已排格的一次点击：普通 = 取消，Ctrl/Cmd = 多选待取消 */
-function onBrickClick(e: MouseEvent): void {
-  if (!dutyPerson.value) return
-  if (e.ctrlKey || e.metaKey) emit('select', dutyPerson.value.id)
-  else emit('cancel', dutyPerson.value.id)
+/** 已排格按下起手：左键才进多选，右键留给换人菜单 */
+function onBrickDown(e: PointerEvent): void {
+  if (e.button !== 0) return
+  emit('selstart')
 }
 
 function colTitle(p: Person): string {
@@ -78,7 +78,7 @@ function colStyle(p: Person): Record<string, string> {
     :aria-label="where"
     :class="{ conflict: info.conflict, gap: !!info.gapFrom && !dutyPerson, filled: !!dutyPerson }"
   >
-    <!-- 已排：点一下取消，Ctrl/Cmd 多选，右键/Shift+回车换人 -->
+    <!-- 已排：按住拖过多格一起取消，松手生效；右键/Shift+回车换人 -->
     <button
       v-if="dutyPerson"
       class="brick"
@@ -87,11 +87,12 @@ function colStyle(p: Person): Record<string, string> {
       :data-pid="dutyPerson.id"
       :tabindex="activeId === slotId(dutyPerson.id) ? 0 : -1"
       :style="{ background: dutyFill(dutyPerson.color) }"
-      :aria-label="`${where}，${dutyPerson.name}值班${info.conflict ? '，冲突' : ''}${props.selected ? '，已选中' : ''}，回车取消，Shift+回车换人`"
+      :aria-label="`${where}，${dutyPerson.name}值班${info.conflict ? '，冲突' : ''}${props.selected ? '，松开取消' : ''}，回车取消，Shift+回车换人`"
       aria-haspopup="menu"
       :aria-expanded="menuOpen"
-      :title="props.selected ? '已加入待取消' : '点击取消 · Ctrl+点击多选 · 右键换人'"
-      @click="onBrickClick"
+      :title="props.selected ? '松开即取消' : '按住拖动多选 · 松手取消 · 右键换人'"
+      @pointerdown="onBrickDown"
+      @pointerenter="emit('selenter')"
       @contextmenu.prevent="dutyPerson && emit('menu', true)"
       @keydown.enter.exact.prevent="dutyPerson && emit('cancel', dutyPerson.id)"
       @keydown.shift.enter.prevent="emit('menu', true)"
