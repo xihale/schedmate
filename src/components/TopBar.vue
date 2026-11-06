@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { exportFocusDuties } from '../lib/export'
-import { courseDate, fmtMD, monthGroups, todayWeek } from '../lib/dates'
+import { courseDate, fmtMD, monthSpans, todayWeek } from '../lib/dates'
 import { WEEK_COUNT } from '../types'
 import { useConfigStore } from '../stores/config'
 import { useDutyStore } from '../stores/duty'
@@ -22,18 +22,21 @@ interface Preset {
   label: string
   title: string
   weeks: number[]
+  /** 月预设才有：跨界周只露出这个月的日子 */
+  month?: number
 }
 
-/** 写入范围：某个整月，或从本周起 N 周 */
+/** 写入范围：某个整月（含首尾跨界周），或从本周起 N 周 */
 const presets = computed<Preset[]>(() => {
   const startISO = config.state.semesterStart
   const span = (weeks: number[]) =>
     `${fmtMD(courseDate(startISO, weeks[0], 1))}–${fmtMD(courseDate(startISO, weeks[weeks.length - 1], 7))}`
-  const list: Preset[] = monthGroups(startISO, WEEK_COUNT).map((g) => ({
-    id: `m${g.month}`,
-    label: `${g.month}月`,
-    title: span(g.weeks),
-    weeks: [...g.weeks],
+  const list: Preset[] = monthSpans(startISO, WEEK_COUNT).map((s) => ({
+    id: `m${s.month}`,
+    label: `${s.month}月`,
+    title: `${fmtMD(s.from)}–${fmtMD(s.to)}`,
+    weeks: [...s.weeks],
+    month: s.month,
   }))
   const tw = todayWeek(startISO, WEEK_COUNT)
   const seen = new Set<number>()
@@ -50,7 +53,13 @@ const presets = computed<Preset[]>(() => {
 
 const activePreset = computed(() => {
   const fw = focusWeeks.value
-  return presets.value.find((p) => p.weeks.length === fw.length && p.weeks.every((w, i) => w === fw[i]))?.id ?? ''
+  const m = config.state.ui.focus.month ?? null
+  return presets.value.find(
+    (p) =>
+      (p.month ?? null) === m &&
+      p.weeks.length === fw.length &&
+      p.weeks.every((w, i) => w === fw[i]),
+  )?.id ?? ''
 })
 
 const monthPresets = computed(() => presets.value.filter((p) => p.id.startsWith('m')))
@@ -76,7 +85,11 @@ function onRange(e: Event): void {
   const id = (e.target as HTMLSelectElement).value
   const p = presets.value.find((x) => x.id === id)
   if (!p) return
-  config.state.ui.focus = { start: p.weeks[0], end: p.weeks[p.weeks.length - 1] }
+  config.state.ui.focus = {
+    start: p.weeks[0],
+    end: p.weeks[p.weeks.length - 1],
+    ...(p.month != null ? { month: p.month } : {}),
+  }
   if (!p.weeks.includes(config.state.ui.week)) config.state.ui.week = p.weeks[0]
   flash(`范围：${p.label} ${p.title}`)
 }

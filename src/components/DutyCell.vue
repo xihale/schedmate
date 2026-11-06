@@ -10,6 +10,8 @@ const props = defineProps<{
   week: number
   day: number
   period: number
+  /** 月聚焦的跨界周里，该日不属于聚焦月 → 整格屏蔽：空白、不可交互 */
+  masked?: boolean
   previewPid?: PersonId | null
   denial?: { pid: PersonId; text: string } | null
   activeId: string | null
@@ -78,9 +80,10 @@ function colStyle(p: Person): Record<string, string> {
     :aria-label="where"
     :class="{ conflict: info.conflict, gap: !!info.gapFrom && !dutyPerson, filled: !!dutyPerson }"
   >
-    <!-- 已排：按住拖过多格一起取消，松手生效；右键/Shift+回车换人 -->
-    <button
-      v-if="dutyPerson"
+    <template v-if="!props.masked">
+      <!-- 已排：按住拖过多格一起取消，松手生效；右键/Shift+回车换人 -->
+      <button
+        v-if="dutyPerson"
       class="brick"
       :class="{ selected: props.selected }"
       :data-slot="slotId(dutyPerson.id)"
@@ -142,6 +145,7 @@ function colStyle(p: Person): Record<string, string> {
       </button>
       <span v-if="!swappable.length" class="empty">没有可换的人</span>
     </div>
+    </template>
   </div>
 </template>
 

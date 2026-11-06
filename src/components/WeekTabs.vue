@@ -9,18 +9,19 @@ import { flash } from '../lib/status'
 
 const config = useConfigStore()
 const duty = useDutyStore()
-const { focusWeeks, weeksWithGaps, gapMap } = useSchedule()
+const { focusWeeks, weeksWithGaps, gapMap, dayInFocus } = useSchedule()
 
 const week = computed({
   get: () => config.state.ui.week,
   set: (v: number) => (config.state.ui.week = v),
 })
 
-/** 每周已排节数，页签上只用来判断这周是否已经动过 */
+/** 每周已排节数，页签上只用来判断这周是否已经动过；月聚焦跨界周里只数本月的日子 */
 const counts = computed(() => {
   const c: Record<number, number> = {}
   for (const key of Object.keys(duty.state.map)) {
-    const w = Number(key.split('|')[0])
+    const [w, d] = key.split('|').map(Number)
+    if (!dayInFocus(w, d)) continue
     c[w] = (c[w] ?? 0) + 1
   }
   return c

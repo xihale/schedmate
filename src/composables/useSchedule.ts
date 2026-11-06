@@ -4,7 +4,7 @@ import { PERIOD_COUNT, WEEK_COUNT, dutyKey, parseDutyKey } from '../types'
 import { useTimetableStore } from '../stores/timetable'
 import { useDutyStore } from '../stores/duty'
 import { useConfigStore } from '../stores/config'
-import { clampFocus } from '../lib/dates'
+import { clampFocus, courseDate } from '../lib/dates'
 
 export type Half =
   | { status: 'course'; course: Course }
@@ -82,8 +82,16 @@ export function useSchedule() {
     return weeks
   })
 
+  /** 月聚焦下该日是否属于聚焦月（跨界周只露出本月的日子）；周次聚焦恒 true */
+  function dayInFocus(week: number, day: number): boolean {
+    const month = config.state.ui.focus.month
+    if (month == null) return true
+    return courseDate(config.state.semesterStart, week, day).getMonth() + 1 === month
+  }
+
   /**
    * 缺口：聚焦区间内，前一周 (d,p) 有此人的排班、本周没有、且此人本周该节有课。
+   * 任一侧是聚焦月外的日子（跨界周的屏蔽列）不算——那是隔壁月的排班，灌不进来也无需补。
    * 全派生：手动补上（排任何人）即消失；删掉前一周的排班也随之消失。
    */
   const gapMap = computed(() => {
@@ -93,6 +101,7 @@ export function useSchedule() {
       const w = weeks[i]
       const pw = weeks[i - 1]
       for (let d = 1; d <= 7; d++) {
+        if (!dayInFocus(w, d) || !dayInFocus(pw, d)) continue
         for (let p = 1; p <= PERIOD_COUNT; p++) {
           const prev = duty.state.map[dutyKey(pw, d, p)]
           const cur = duty.state.map[dutyKey(w, d, p)]
@@ -194,6 +203,7 @@ export function useSchedule() {
     cell,
     available,
     focusWeeks,
+    dayInFocus,
     gapMap,
     weeksWithGaps,
     collectSync,

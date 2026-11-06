@@ -300,6 +300,11 @@ function dayDate(day: number): string {
   return fmtMD(courseDate(config.state.semesterStart, week.value, day))
 }
 
+/** 月聚焦的跨界周：不属于聚焦月的日子整列屏蔽——空列、不可排、不计缺口 */
+function masked(day: number): boolean {
+  return !schedule.dayInFocus(week.value, day)
+}
+
 onMounted(() => {
   window.addEventListener('pointerup', onWindowPointerUp)
   window.addEventListener('pointerdown', onDocPointer)
@@ -337,7 +342,7 @@ watch(
     @focusin="onFocusIn"
   >
     <div class="corner" role="presentation" />
-    <div v-for="(name, i) in DAY_NAMES" :key="name" class="day-head" role="columnheader">
+    <div v-for="(name, i) in DAY_NAMES" :key="name" class="day-head" :class="{ off: masked(i + 1) }" role="columnheader">
       <span class="day-name">{{ name }}</span>
       <span class="day-date">{{ dayDate(i + 1) }}</span>
     </div>
@@ -350,6 +355,7 @@ watch(
         :week="week"
         :day="d"
         :period="p"
+        :masked="masked(d)"
         :cell-id="`${d}-${p}`"
         :active-id="activeId"
         :preview-pid="previewPid(d, p)"
@@ -404,6 +410,12 @@ watch(
 .day-date {
   color: var(--muted);
   font-size: 11px;
+}
+
+/* 聚焦月外的日子：整列调暗，发丝线不动 */
+.day-head.off .day-name,
+.day-head.off .day-date {
+  opacity: 0.4;
 }
 
 .period {

@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import type { Person, PersonId } from '../types'
 import { PERSON_PALETTE, WEEK_COUNT } from '../types'
 import { loadJSON, persistOn } from '../lib/persist'
-import { clampFocus, monthGroups, todayWeek } from '../lib/dates'
+import { clampFocus, monthSpans, todayWeek } from '../lib/dates'
 
 // v3：人数动态化（导入几份课表就有几个人），ui.showA/showB 改为 hiddenIds；升 key 使旧配置不干扰
 const KEY = 'schedmate:v3:config'
@@ -11,6 +11,8 @@ const KEY = 'schedmate:v3:config'
 export interface FocusRange {
   start: number // 含端点
   end: number
+  /** 月聚焦的月份（1..12）：跨界周里只露出该月的日子；周次聚焦无此字段 */
+  month?: number
 }
 
 interface ConfigState {
@@ -28,15 +30,19 @@ interface ConfigState {
   }
 }
 
-/** 默认聚焦的月分组：今天所在周的分组；今天在分组最后一周（月末）→ 用下一个分组 */
+/** 默认聚焦：今天日期所在的月；今天已在该月最后一周（月末）→ 默认下个月 */
 function defaultFocus(startISO: string): FocusRange {
-  const groups = monthGroups(startISO, WEEK_COUNT)
+  const spans = monthSpans(startISO, WEEK_COUNT)
   const tw = todayWeek(startISO, WEEK_COUNT)
-  const i = groups.findIndex((g) => g.weeks.includes(tw))
+  let i = spans.findIndex((s) => s.month === new Date().getMonth() + 1)
+  if (i < 0) i = spans.findIndex((s) => s.weeks.includes(tw))
   if (i < 0) return { start: tw, end: tw }
-  const g = groups[i]
-  if (g.weeks[g.weeks.length - 1] === tw && i + 1 < groups.length) return clampFocus({ start: groups[i + 1].weeks[0], end: groups[i + 1].weeks[groups[i + 1].weeks.length - 1] }, WEEK_COUNT)
-  return { start: g.weeks[0], end: g.weeks[g.weeks.length - 1] }
+  const s = spans[i]
+  if (s.weeks[s.weeks.length - 1] === tw && i + 1 < spans.length) {
+    const n = spans[i + 1]
+    return { start: n.weeks[0], end: n.weeks[n.weeks.length - 1], month: n.month }
+  }
+  return { start: s.weeks[0], end: s.weeks[s.weeks.length - 1], month: s.month }
 }
 
 function defaultUi(startISO: string): ConfigState['ui'] {
